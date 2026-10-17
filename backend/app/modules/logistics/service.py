@@ -84,6 +84,20 @@ def create_dispatch(db: Session, p: Principal, so_id: int, data: dict) -> Dispat
     return d
 
 
+def plan_dispatch(db: Session, p: Principal, d_id: int, data: dict) -> DispatchOrder:
+    """Asigna ruta, transportista, fecha de envío planificada o dirección mientras el despacho no ha salido."""
+    d = get_owned(db, DispatchOrder, d_id, p.company_id, lock=True)
+    if d.status not in _OPEN:
+        raise BusinessRuleViolation("Solo se planifican despachos que aún no se han enviado")
+    check_company_refs(db, DispatchOrder, p.company_id, data)
+    if data.get("carrier_id") and not get_owned(db, Party, data["carrier_id"], p.company_id).is_carrier:
+        raise BusinessRuleViolation("El tercero indicado no es transportista")
+    for k, v in data.items():
+        setattr(d, k, v)
+    _event(db, d, "planned", p.user_id, notes=", ".join(f"{k}={v}" for k, v in data.items()))
+    return d
+
+
 def start_picking(db: Session, p: Principal, d_id: int) -> DispatchOrder:
     d = get_owned(db, DispatchOrder, d_id, p.company_id, lock=True)
     if d.status != "draft":

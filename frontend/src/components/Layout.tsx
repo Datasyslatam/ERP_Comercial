@@ -27,10 +27,14 @@ export const NAV: { section: string; items: NavItem[] }[] = [
   { section: "Ventas y logística", items: [
     { to: "/ventas/pedidos", label: "Pedidos de venta", perm: "sales.order.read", module: "sales" },
     { to: "/logistica/despachos", label: "Despachos", perm: "logistics.dispatch.read", module: "logistics" },
+    { to: "/logistica/rutas", label: "Rutas y plan de entregas", perm: "logistics.dispatch.read", module: "logistics" },
+    { to: "/logistica/incidencias", label: "Incidencias de entrega", perm: "logistics.dispatch.read", module: "logistics" },
+    { to: "/logistica/devoluciones", label: "Devoluciones", perm: "logistics.return.read", module: "logistics" },
     { to: "/facturacion", label: "Facturación electrónica", perm: "einvoicing.invoice.read", module: "einvoicing" },
   ] },
   { section: "Operaciones", items: [
     { to: "/operaciones/ordenes", label: "Órdenes de trabajo", perm: "operations.work_order.read", module: "operations" },
+    { to: "/operaciones/listas-materiales", label: "Listas de materiales", perm: "operations.work_order.read", module: "operations" },
   ] },
   { section: "Contabilidad", items: [
     { to: "/contabilidad/reportes", label: "Estados financieros", perm: "accounting.reports.read" },

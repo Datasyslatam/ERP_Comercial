@@ -27,7 +27,7 @@ declara terminado en el código.
 | 13 | Flujo de efectivo indirecto y clasificación de actividades de inversión/financiación por cuenta. |
 | 14 | Diferencia en cambio no realizada (reexpresión de saldos en divisas al cierre). |
 | 15 | Importación de extractos bancarios desde archivo (hoy por API JSON). |
-| 16 | Pantallas de interfaz para: retenciones en recaudos, notas débito, BOM, rutas y planificación de entregas, devoluciones de cliente e incidencias (disponibles por API). |
+| 16 | ~~Pantallas para retenciones en recaudos, notas crédito/débito, listas de materiales, rutas y plan de entregas, devoluciones e incidencias~~ — **implementadas**. Quedan solo por API: conciliación bancaria (importar extracto y cruce manual), límites de aprobación, metas por sede y adjuntos. |
 
 ## Técnicos y de seguridad
 

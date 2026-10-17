@@ -134,6 +134,21 @@ def create_dispatch(body: DispatchIn, p: Principal = Depends(require("logistics.
     return to_dict(d, "lines")
 
 
+class PlanIn(BaseModel):
+    route_id: int | None = None
+    carrier_id: int | None = None
+    planned_ship_date: date | None = None
+    delivery_address: str | None = Field(default=None, max_length=255)
+
+
+@router.patch("/dispatches/{d_id}/plan")
+def plan(d_id: int, body: PlanIn, p: Principal = Depends(require("logistics.dispatch.create")),
+         db: Session = Depends(get_db)):
+    d = svc.plan_dispatch(db, p, d_id, body.model_dump(exclude_unset=True))
+    db.commit()
+    return to_dict(d, "lines")
+
+
 @router.post("/dispatches/{d_id}/start-picking")
 def start_picking(d_id: int, p: Principal = Depends(require("logistics.dispatch.create")),
                   db: Session = Depends(get_db)):

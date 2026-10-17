@@ -4,7 +4,7 @@ import { Line, LinesEditor, linesPayload } from "../components/LinesEditor";
 import { ActionButton, Alert, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
 import { Json, post, qs } from "../lib/api";
 import { fmtDate, fmtMoney, fmtNumber } from "../lib/format";
-import { useFetch, useOptions } from "../lib/hooks";
+import { useFetch, useItemNames, useLookup, useOptions } from "../lib/hooks";
 import { useSession } from "../lib/session";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -64,6 +64,7 @@ function RfqModal({ requisition, onClose }: { requisition: Json; onClose: () => 
   const [cmp, setCmp] = useState<Json | null>(null);
   const suppliers = useOptions("/parties?limit=500", (x) => x.legal_name);
   const whs = useOptions("/warehouses", (x) => x.name);
+  const partyName = useLookup("/parties?limit=500", (x) => x.legal_name);
   const [error, setError] = useState<string | null>(null);
   const loadCmp = async (id: number) => setCmp(await (await import("../lib/api")).get(`/purchasing/rfqs/${id}/comparison`));
   return (
@@ -85,7 +86,7 @@ function RfqModal({ requisition, onClose }: { requisition: Json; onClose: () => 
           }} />
         {cmp && <>
           <h3>Comparativo</h3>
-          <DataTable rows={cmp.suppliers} columns={[{ key: "supplier_id", title: "Proveedor" },
+          <DataTable rows={cmp.suppliers} columns={[{ key: "supplier_id", title: "Proveedor", render: (r) => partyName(r.supplier_id) },
             { key: "total", title: "Total", align: "right", render: (r) => fmtMoney(r.total) }, { key: "delivery_days", title: "Días" },
             { key: "rec", title: "", render: (r) => r.quote_id === cmp.recommended_quote_id ? <Badge value="ok" /> : null },
             { key: "award", title: "", render: (r) => whs[0] ? <ActionButton onClick={async () => {
@@ -140,6 +141,7 @@ export function OrderDetailPage() {
   const { id } = useParams();
   const { can } = useSession();
   const { data: po, reload } = useFetch<Json>(`/purchasing/orders/${id}`);
+  const itemName = useItemNames();
   const [receiving, setReceiving] = useState(false);
   if (!po) return <p className="muted">Cargando…</p>;
   const act = (path: string, body?: Json) => async () => { await post(`/purchasing/orders/${po.id}/${path}`, body); reload(); };
@@ -154,7 +156,7 @@ export function OrderDetailPage() {
       <KeyValues data={po} keys={[["order_date", "Fecha"], ["expected_date", "Entrega esperada"], ["currency", "Moneda"],
         ["exchange_rate", "Tasa"], ["subtotal", "Subtotal", fmtMoney], ["tax_total", "Impuestos", fmtMoney], ["total", "Total", fmtMoney]]} />
       <h3>Líneas</h3>
-      <DataTable rows={po.lines} columns={[{ key: "line_no", title: "#" }, { key: "item_id", title: "Artículo" },
+      <DataTable rows={po.lines} columns={[{ key: "line_no", title: "#" }, { key: "item_id", title: "Artículo", render: (r) => itemName(r.item_id) },
         { key: "quantity", title: "Cantidad", align: "right", render: (r) => fmtNumber(r.quantity) },
         { key: "unit_price", title: "Precio", align: "right", render: (r) => fmtMoney(r.unit_price) },
         { key: "qty_received", title: "Recibido", align: "right", render: (r) => fmtNumber(r.qty_received) },
@@ -190,6 +192,7 @@ export function SupplierInvoicesPage() {
   const { can } = useSession();
   const { data, reload } = useFetch<Json>("/purchasing/invoices");
   const receipts = useFetch<Json>("/purchasing/receipts?limit=100");
+  const itemName = useItemNames();
   const suppliers = useOptions("/parties?limit=500", (x) => x.legal_name);
   const [creating, setCreating] = useState(false);
   const pending: Json[] = (receipts.data?.items ?? []).flatMap((g: Json) => g.lines.filter((l: Json) => Number(l.qty_accepted) > Number(l.qty_invoiced))
@@ -208,7 +211,7 @@ export function SupplierInvoicesPage() {
         <Modal title="Registrar factura de proveedor" onClose={() => setCreating(false)}>
           <h3>Recepciones aceptadas pendientes de facturar</h3>
           <DataTable rows={pending} empty="No hay recepciones pendientes" columns={[{ key: "receipt_number", title: "Recepción" },
-            { key: "item_id", title: "Artículo" }, { key: "qty", title: "Pendiente", align: "right", render: (r) => fmtNumber(Number(r.qty_accepted) - Number(r.qty_invoiced)) },
+            { key: "item_id", title: "Artículo", render: (r) => itemName(r.item_id) }, { key: "qty", title: "Pendiente", align: "right", render: (r) => fmtNumber(Number(r.qty_accepted) - Number(r.qty_invoiced)) },
             { key: "price", title: "Precio facturado", render: (r) => <input type="number" step="any" aria-label="Precio facturado"
               value={selected[r.id] ?? ""} onChange={(e) => setSelected({ ...selected, [r.id]: e.target.value })} /> }]} />
           <Form initial={{ invoice_date: today(), currency: "COP" }} fields={[

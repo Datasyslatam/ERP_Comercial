@@ -189,3 +189,23 @@ def test_credit_limit_blocks_confirmation(env):
                                   "lines": [{"item_id": env["items"]["A"], "quantity": "1", "unit_price": "500"}]})
     r = a.post(f"/sales/orders/{so['id']}/confirm", expect=422)
     assert "cupo" in r.json()["error"]["message"]
+
+
+def test_dispatch_planning_and_delivery_plan(env):
+    stock_in(env, "A", qty=5, price=10)
+    so = confirmed_so(env, "A", qty=2)
+    a = env.api("admin1")
+    route = a.post("/routes", {"code": "R-NORTE", "name": "Ruta norte", "standard_lead_days": 1})
+    d = a.post("/logistics/dispatches", {"sales_order_id": so["id"]})
+    planned = a.patch(f"/logistics/dispatches/{d['id']}/plan", {"route_id": route["id"], "carrier_id": env["carrier_id"],
+                                                               "planned_ship_date": str(TODAY)})
+    assert planned["route_id"] == route["id"] and planned["planned_ship_date"] == str(TODAY)
+    # Un cliente no es transportista
+    a.patch(f"/logistics/dispatches/{d['id']}/plan", {"carrier_id": env["customer_id"]}, expect=422)
+    a.post(f"/logistics/dispatches/{d['id']}/start-picking")
+    a.post(f"/logistics/dispatches/{d['id']}/picking", {"picks": [{"dispatch_line_id": d["lines"][0]["id"], "qty_picked": "2"}]})
+    plan = a.get(f"/logistics/delivery-plan?on={TODAY}")
+    assert plan[0]["route_id"] == route["id"] and plan[0]["count"] == 1
+    a.post(f"/logistics/dispatches/{d['id']}/pack", {"packages_count": 1})
+    a.post(f"/logistics/dispatches/{d['id']}/ship", {})
+    a.patch(f"/logistics/dispatches/{d['id']}/plan", {"planned_ship_date": str(TODAY)}, expect=422)  # ya enviado

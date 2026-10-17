@@ -1,6 +1,6 @@
 # Documentación de la API
 
-- Especificación completa OpenAPI 3: [`openapi.json`](openapi.json) (195 rutas, generada desde el código).
+- Especificación completa OpenAPI 3: [`openapi.json`](openapi.json) (196 rutas, generada desde el código).
 - Interactiva: `http://<host>/api/docs` (Swagger) y `/api/redoc` en entornos distintos de producción.
 
 ## Convenciones
@@ -25,7 +25,7 @@
 | Inventario | `/inventory/stock`, `/kardex/{item}`, `/availability/{item}`, `/replenishment`, `/expiring`, `/lots`, `/reservations`, `/consistency`, `/documents` (+`/approve`, `/post`), `/counts` (+`/entries`, `/close`) |
 | Calidad | `/quality/plans`, `/inspections` (+`/result`), `/lots/{id}/status`, `/nonconformities` (+`/advance`, `/actions`), `/actions/{id}/status`, `/history` |
 | Ventas | `/sales/orders` (+`/confirm`, `/cancel`), `/customers/{id}/credit` |
-| Logística | `/logistics/dispatches` (+`/start-picking`, `/picking`, `/pack`, `/ship`, `/deliver`, `/cancel`, `/events`, `/incidents`, `/returns`), `/incidents/{id}/resolve`, `/returns`, `/delivery-plan` |
+| Logística | `/logistics/dispatches` (+`/plan`, `/start-picking`, `/picking`, `/pack`, `/ship`, `/deliver`, `/cancel`, `/events`, `/incidents`, `/returns`), `/incidents/{id}/resolve`, `/returns`, `/delivery-plan` |
 | Operaciones | `/operations/boms`, `/work-orders` (+`/release`, `/issues`, `/time-logs`, `/output`, `/incidents`, `/complete`, `/close`) |
 | Contabilidad | `/accounting/entries` (+`/post`, `/reverse`), `/periods` (+`/close`, `/reopen`, `/open-year`), `/year-close`, `/open-items`, `/aging`, `/payments` (+`/void`), `/bank-statements` (+`/auto-match`, `/reconciliation`), `/bank-statement-lines/{id}/match`, `/reports/{trial-balance, general-ledger, journal, income-statement, balance-sheet, cash-flow}`, `/budgets`, `/goals` |
 | Facturación | `/einvoicing/numbering-ranges`, `/invoices` (+`/from-dispatch`, `/issue`, `/resend`, `/cancel`, `/notes`, `/document`), `/reconciliation`, `/correction-codes` |

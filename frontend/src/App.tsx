@@ -8,7 +8,10 @@ import { AccountsPage, ItemsPage, NumberingPage, PartiesPage, TaxesPage, Warehou
 import { AuditPage, ImportsPage, UsersPage, WorkOrdersPage } from "./pages/Other";
 import { OrderDetailPage, OrdersPage, RequisitionsPage, SupplierInvoicesPage } from "./pages/Purchasing";
 import { InspectionsPage, NonConformitiesPage } from "./pages/Quality";
-import { DispatchDetailPage, DispatchesPage, InvoicingPage, SalesOrdersPage } from "./pages/Sales";
+import { DispatchesPage, SalesOrdersPage } from "./pages/Sales";
+import { DispatchDetailPage, IncidentsPage, ReturnsPage, RoutesPlanPage } from "./pages/Logistics";
+import { InvoicingPage } from "./pages/Invoicing";
+import { BomsPage } from "./pages/Production";
 import { SessionProvider, useSession } from "./lib/session";
 
 function Routed() {
@@ -40,10 +43,12 @@ function Routed() {
         <Route path="ventas/pedidos" element={<SalesOrdersPage />} />
         <Route path="logistica/despachos" element={<DispatchesPage />} />
         <Route path="logistica/despachos/:id" element={<DispatchDetailPage />} />
-        <Route path="logistica/incidencias" element={<DispatchesPage />} />
-        <Route path="logistica/devoluciones" element={<DispatchesPage />} />
+        <Route path="logistica/incidencias" element={<IncidentsPage />} />
+        <Route path="logistica/devoluciones" element={<ReturnsPage />} />
+        <Route path="logistica/rutas" element={<RoutesPlanPage />} />
         <Route path="facturacion" element={<InvoicingPage />} />
         <Route path="operaciones/ordenes" element={<WorkOrdersPage />} />
+        <Route path="operaciones/listas-materiales" element={<BomsPage />} />
         <Route path="contabilidad/reportes" element={<ReportsPage />} />
         <Route path="contabilidad/estado-resultados" element={<ReportsPage />} />
         <Route path="contabilidad/flujo-efectivo" element={<ReportsPage />} />

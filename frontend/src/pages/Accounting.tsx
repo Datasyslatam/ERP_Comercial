@@ -102,7 +102,6 @@ export function ReceivablesPage() {
   const { can } = useSession();
   const [kind, setKind] = useState("receivable");
   const aging = useFetch<Json>(`/accounting/aging?kind=${kind}`);
-  const banks = useOptions("/bank-accounts", (x) => `${x.name} (${x.currency})`);
   const [paying, setPaying] = useState<Json | null>(null);
   return (
     <Page title="Cartera y pagos" actions={<select aria-label="Tipo" value={kind} onChange={(e) => setKind(e.target.value)}>
@@ -113,17 +112,7 @@ export function ReceivablesPage() {
         { key: "due_date", title: "Vence" }, { key: "days_overdue", title: "Días vencido", align: "right" },
         { key: "open_amount", title: "Saldo", align: "right", render: (r) => fmtMoney(r.open_amount, r.currency) },
         { key: "a", title: "", render: (r) => can("accounting.payments.create") && <button onClick={() => setPaying(r)}>{kind === "receivable" ? "Recaudar" : "Pagar"}</button> }]} />
-      {paying && <Modal title={`${kind === "receivable" ? "Recaudo" : "Pago"} de ${paying.document}`} onClose={() => setPaying(null)}>
-        <Form initial={{ payment_date: today(), amount: paying.open_amount, method: "transfer" }} fields={[
-          { name: "bank_account_id", label: "Cuenta bancaria", type: "select", required: true, options: banks },
-          { name: "payment_date", label: "Fecha", type: "date", required: true }, { name: "amount", label: "Valor recibido/pagado", type: "number", required: true },
-          { name: "method", label: "Medio", type: "select", options: ["transfer", "cash", "check", "card", "mobile_payment"].map((v) => ({ value: v, label: v })) },
-          { name: "reference", label: "Referencia" }]}
-          onSubmit={async (d) => { await post("/accounting/payments", { ...d, kind: kind === "receivable" ? "receipt" : "disbursement", party_id: paying.party_id,
-            currency: paying.currency, idempotency_key: `ui-${paying.open_item_id}-${Date.now()}`,
-            allocations: [{ open_item_id: paying.open_item_id, amount: d.amount }] }); setPaying(null); aging.reload(); }} />
-        <p className="muted">Para registrar retenciones practicadas por el cliente use la API de pagos (campo withholdings).</p>
-      </Modal>}
+      {paying && <PaymentModal kind={kind} item={paying} onClose={() => setPaying(null)} onDone={() => { setPaying(null); aging.reload(); }} />}
     </Page>
   );
 }
@@ -193,3 +182,62 @@ export function AlertsPage() {
   );
 }
 
+
+interface WithholdingRow { tax_id: string; base: string; amount: string }
+
+/** Recaudo o pago de una partida abierta. En recaudos admite las retenciones que practica el cliente:
+ *  el valor aplicado a la partida = valor recibido en banco + retenciones. */
+export function PaymentModal({ kind, item, onClose, onDone }: {
+  kind: string; item: Json; onClose: () => void; onDone: () => void;
+}) {
+  const receipt = kind === "receivable";
+  const banks = useOptions("/bank-accounts", (x) => `${x.name} (${x.currency})`);
+  const taxes = useFetch<Json>(receipt ? "/taxes?active=true&limit=200" : null);
+  const withholdingTaxes: Json[] = (taxes.data?.items ?? []).filter((t: Json) => String(t.kind).startsWith("withholding")
+    && ["sales", "both"].includes(t.applies_to));
+  const [rows, setRows] = useState<WithholdingRow[]>([]);
+  // Clave fija mientras el formulario esté abierto: un doble envío no duplica el pago.
+  const [idempotencyKey] = useState(() => `ui-${item.open_item_id}-${crypto.randomUUID?.() ?? Date.now()}`);
+  const whTotal = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const setRow = (i: number, patch: Partial<WithholdingRow>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const calc = (i: number) => {
+    const r = rows[i];
+    const tax = withholdingTaxes.find((t) => String(t.id) === r.tax_id);
+    if (tax && r.base) setRow(i, { amount: (Math.round(Number(r.base) * Number(tax.rate)) / 100).toFixed(2) });
+  };
+  const cashDefault = (Number(item.open_amount) - whTotal).toFixed(2);
+  return (
+    <Modal title={`${receipt ? "Recaudo" : "Pago"} de ${item.document}`} onClose={onClose}>
+      <p>Saldo de la partida: <strong>{fmtMoney(item.open_amount, item.currency)}</strong></p>
+      {receipt && <>
+        <h3>Retenciones practicadas por el cliente</h3>
+        <table className="lines"><tbody>{rows.map((r, i) => <tr key={i}>
+          <td><select aria-label="Retención" value={r.tax_id} onChange={(e) => setRow(i, { tax_id: e.target.value })}>
+            <option value="">—</option>{withholdingTaxes.map((t) => <option key={t.id} value={t.id}>{t.code} · {t.name}</option>)}</select></td>
+          <td><input aria-label="Base" type="number" step="any" placeholder="Base" value={r.base} onChange={(e) => setRow(i, { base: e.target.value })} /></td>
+          <td><input aria-label="Valor retenido" type="number" step="any" placeholder="Valor" value={r.amount} onChange={(e) => setRow(i, { amount: e.target.value })} /></td>
+          <td className="row"><button type="button" className="secondary" onClick={() => calc(i)}>Calcular</button>
+            <button type="button" className="secondary" aria-label="Quitar retención" onClick={() => setRows(rows.filter((_, j) => j !== i))}>✕</button></td>
+        </tr>)}</tbody></table>
+        <button type="button" className="secondary" onClick={() => setRows([...rows, { tax_id: "", base: "", amount: "" }])}>+ Retención</button>
+        <p className="muted">Total retenido {fmtMoney(whTotal)}. El valor recibido en banco más las retenciones se aplica a la partida.</p>
+      </>}
+      <Form initial={{ payment_date: today(), amount: item.open_amount, method: "transfer" }} fields={[
+        { name: "bank_account_id", label: "Cuenta bancaria", type: "select", required: true, options: banks },
+        { name: "payment_date", label: "Fecha", type: "date", required: true },
+        { name: "amount", label: receipt ? `Valor recibido en banco (sugerido: saldo − retenciones = ${cashDefault})` : "Valor pagado",
+          type: "number", required: true },
+        { name: "method", label: "Medio", type: "select", options: ["transfer", "cash", "check", "card", "mobile_payment"].map((v) => ({ value: v, label: v })) },
+        { name: "reference", label: "Referencia" }]}
+        onSubmit={async (d) => {
+          const withholdings = rows.filter((r) => r.tax_id && Number(r.amount) > 0)
+            .map((r) => ({ tax_id: Number(r.tax_id), base: r.base || "0", amount: r.amount }));
+          const applied = (Number(d.amount) + withholdings.reduce((s, w) => s + Number(w.amount), 0)).toFixed(2);
+          await post("/accounting/payments", { ...d, kind: receipt ? "receipt" : "disbursement", party_id: item.party_id,
+            currency: item.currency, idempotency_key: idempotencyKey, withholdings,
+            allocations: [{ open_item_id: item.open_item_id, amount: applied }] });
+          onDone();
+        }} />
+    </Modal>
+  );
+}

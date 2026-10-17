@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ActionButton, Badge, DataTable, Form, Modal, Page } from "../components/ui";
 import { Json, post, qs } from "../lib/api";
 import { fmtDate, fmtMoney, fmtNumber } from "../lib/format";
-import { useFetch, useOptions } from "../lib/hooks";
+import { useFetch, useItemNames, useLookup, useOptions } from "../lib/hooks";
 import { useSession } from "../lib/session";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -106,6 +106,9 @@ export function CountsPage() {
   const [current, setCurrent] = useState<number | null>(null);
   const detail = useFetch<Json>(current ? `/inventory/counts/${current}` : null);
   const [counted, setCounted] = useState<Record<number, string>>({});
+  const itemName = useItemNames();
+  const locName = useLookup("/locations?limit=500", (x) => x.code);
+  const lotName = useLookup("/inventory/lots?limit=500", (x) => x.lot_number);
   return (
     <Page title="Conteos físicos" subtitle="Conteo ciego: quien cuenta no ve la existencia del sistema; aprueba un usuario distinto">
       {can("inventory.count.create") && <Form fields={[{ name: "warehouse_id", label: "Bodega", type: "select", required: true, options: whs },
@@ -115,8 +118,9 @@ export function CountsPage() {
         { key: "count_date", title: "Fecha" }, { key: "status", title: "Estado", render: (r) => <Badge value={r.status} /> }]} />
       {detail.data && current && (
         <Modal title={`Conteo ${detail.data.number}`} onClose={() => setCurrent(null)}>
-          <DataTable rows={detail.data.lines} columns={[{ key: "item_id", title: "Artículo" }, { key: "location_id", title: "Ubicación" },
-            { key: "lot_id", title: "Lote" },
+          <DataTable rows={detail.data.lines} columns={[{ key: "item_id", title: "Artículo", render: (r) => itemName(r.item_id) },
+            { key: "location_id", title: "Ubicación", render: (r) => locName(r.location_id) },
+            { key: "lot_id", title: "Lote", render: (r) => lotName(r.lot_id) },
             ...(detail.data.lines[0] && "system_qty" in detail.data.lines[0] ? [{ key: "system_qty", title: "Sistema", align: "right" as const, render: (r: Json) => fmtNumber(r.system_qty) }] : []),
             { key: "counted_qty", title: "Contado", align: "right", render: (r) => detail.data.status === "open"
               ? <input type="number" step="any" aria-label="Cantidad contada" defaultValue={r.counted_qty ?? ""}

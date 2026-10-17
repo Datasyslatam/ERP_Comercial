@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ActionButton, Alert, Badge, DataTable, Form, Modal, Page } from "../components/ui";
 import { api, download, Json, post } from "../lib/api";
 import { fmtDate, fmtMoney, fmtNumber } from "../lib/format";
-import { useFetch, useOptions } from "../lib/hooks";
+import { useFetch, useItemNames, useOptions } from "../lib/hooks";
 import { useSession } from "../lib/session";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -18,6 +18,7 @@ export function WorkOrdersPage() {
   const [creating, setCreating] = useState(false);
   const [current, setCurrent] = useState<number | null>(null);
   const detail = useFetch<Json>(current ? `/operations/work-orders/${current}` : null);
+  const itemName = useItemNames();
   const act = async (path: string, body?: Json) => { await post(`/operations/work-orders/${current}/${path}`, body); detail.reload(); reload(); };
   return (
     <Page title="Órdenes de trabajo" subtitle="Producción, servicios y proyectos"
@@ -41,7 +42,7 @@ export function WorkOrdersPage() {
       {detail.data && current && <Modal title={`Orden ${detail.data.number}`} onClose={() => setCurrent(null)}>
         <p><Badge value={detail.data.status} /> Costo estimado {fmtMoney(detail.data.summary.estimated_cost)} · real {fmtMoney(detail.data.summary.actual_cost)}
           · variación {fmtMoney(detail.data.summary.cost_variance)} · horas {fmtNumber(detail.data.summary.actual_hours)}/{fmtNumber(detail.data.summary.planned_hours)}</p>
-        <DataTable rows={detail.data.materials} empty="Sin materiales" columns={[{ key: "item_id", title: "Material" },
+        <DataTable rows={detail.data.materials} empty="Sin materiales" columns={[{ key: "item_id", title: "Material", render: (r) => itemName(r.item_id) },
           { key: "planned_qty", title: "Plan", align: "right", render: (r) => fmtNumber(r.planned_qty) },
           { key: "issued_qty", title: "Entregado", align: "right", render: (r) => fmtNumber(r.issued_qty) },
           { key: "issued_cost", title: "Costo", align: "right", render: (r) => fmtMoney(r.issued_cost) }]} />
@@ -59,7 +60,7 @@ export function WorkOrdersPage() {
             submitLabel="Registrar" onSubmit={(d) => act("time-logs", d)} />
           {detail.data.wo_type === "production" && <>
             <h3>Entrega de materiales</h3>
-            <Form fields={[{ name: "item_id", label: "Material", type: "select", required: true, options: detail.data.materials.map((m: Json) => ({ value: m.item_id, label: String(m.item_id) })) },
+            <Form fields={[{ name: "item_id", label: "Material", type: "select", required: true, options: detail.data.materials.map((m: Json) => ({ value: m.item_id, label: itemName(m.item_id) })) },
               { name: "location_id", label: "Ubicación origen", type: "select", required: true, options: locs }, { name: "quantity", label: "Cantidad", type: "number", required: true }]}
               submitLabel="Entregar" onSubmit={(d) => act("issues", { issues: [d] })} />
             <h3>Reporte de producción</h3>

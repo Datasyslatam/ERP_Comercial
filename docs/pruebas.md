@@ -7,8 +7,8 @@ Node 24. Comando: `pytest -v --cov=app --cov=integrations` y `npm test` / `npm r
 
 | Conjunto | Aprobadas | Fallidas | Omitidas | Observación |
 |---|---|---|---|---|
-| Backend (integración + unitarias) | **63** | 0 | 0 | Cobertura de líneas **84 %** (app + integrations) |
-| Frontend (Vitest + Testing Library) | **5** | 0 | 0 | Formato, query strings, tabla, formulario y manejo de errores |
+| Backend (integración + unitarias) | **64** | 0 | 0 | Cobertura de líneas **84 %** (app + integrations) |
+| Frontend (Vitest + Testing Library) | **9** | 0 | 0 | Formato, tabla, formulario; recaudo con retenciones; notas crédito/débito |
 | Compilación frontend (`tsc -b` + `vite build`) | OK | — | — | |
 | Migraciones (`alembic upgrade/downgrade/upgrade`, `alembic check`) | OK | — | — | Modelo y migraciones sincronizados |
 | Lint (`ruff check backend integrations tests`) | OK | — | — | |
@@ -79,6 +79,7 @@ Node 24. Comando: `pytest -v --cov=app --cov=integrations` y `npm test` / `npm r
 - test_order_to_cash.py::test_credit_note_and_customer_return — aprobada
 - test_order_to_cash.py::test_einvoice_rejected_then_resent — aprobada
 - test_order_to_cash.py::test_credit_limit_blocks_confirmation — aprobada
+- test_order_to_cash.py::test_dispatch_planning_and_delivery_plan — aprobada
 - test_procure_to_pay.py::test_full_procure_to_pay_flow — aprobada
 - test_procure_to_pay.py::test_price_tolerance_and_supplier_evaluation — aprobada
 - test_procure_to_pay.py::test_cannot_receive_unapproved_order — aprobada
@@ -108,7 +109,7 @@ Node 24. Comando: `pytest -v --cov=app --cov=integrations` y `npm test` / `npm r
 |---|---|
 | `test_security.py` | login, bloqueo por intentos, rotación y reutilización de refresh token, 401/403, aislamiento multiempresa (incluidas FK cruzadas), segregación de funciones, límites de aprobación, política de contraseñas, cabeceras, rate limit, auditoría y su inmutabilidad |
 | `test_procure_to_pay.py` | solicitud → cotizaciones → comparativo → OC → recepción parcial → sobre-recepción rechazada → factura con cruce a tres vías y retención → duplicado rechazado → contabilización idempotente → pago idempotente → trazabilidad; tolerancia de precio; presupuesto bloqueante |
-| `test_order_to_cash.py` | pedido con descuento → reserva → picking limitado a lo reservado → envío y costo de ventas → factura electrónica sandbox (CUFE, XML) → cartera → recaudo con retención → conciliación; sobreventa imposible; FEFO; nota crédito y devolución; rechazo y reenvío; cupo de crédito |
+| `test_order_to_cash.py` | planificación de despachos (ruta, transportista, fecha) y plan de entregas; pedido con descuento → reserva → picking limitado a lo reservado → envío y costo de ventas → factura electrónica sandbox (CUFE, XML) → cartera → recaudo con retención → conciliación; sobreventa imposible; FEFO; nota crédito y devolución; rechazo y reenvío; cupo de crédito |
 | `test_quality.py` | cuarentena no reservable ni facturable, aceptación parcial con devolución y NC automática, característica crítica, flujo CAPA, bloqueo de lote |
 | `test_inventory.py` | no negativos (servicio y BD), libro inmutable, ajustes con aprobación de otro usuario, promedio ponderado, transferencias, kardex, conteo ciego, lote/vencimiento obligatorios |
 | `test_accounting.py` | partida doble (API y trigger), inmutabilidad, reverso, periodos cerrados (servicio y BD), reapertura controlada, estados financieros cuadrados, cierre anual, conciliación bancaria |
@@ -118,4 +119,5 @@ Node 24. Comando: `pytest -v --cov=app --cov=integrations` y `npm test` / `npm r
 | `test_kpi.py` | sin datos → "sin datos" (nunca cifras inventadas), cálculo desde transacciones, metas/estado, alertas sin duplicados, permisos por módulo, tendencia |
 | `test_operations.py` | módulo desactivable, costeo real de producción, WIP en cero tras el cierre, orden de servicio |
 | `test_venezuela.py` | empresa VES, venta en USD con tasa, imprenta digital sandbox, IGTF 3 %, retención de IVA 75 %, balance cuadrado |
+| `frontend/src/screens.test.tsx` | recaudo con retenciones (cálculo, valor aplicado, idempotencia), pago sin retenciones, nota crédito y validación de nota débito |
 | `test_backup_restore.py` | `pg_dump` → `pg_restore` en otra base → conteos, balance y triggers idénticos |

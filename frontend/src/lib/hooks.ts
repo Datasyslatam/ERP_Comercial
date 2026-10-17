@@ -23,6 +23,18 @@ export function useFetch<T = Json>(path: string | null) {
   return { data, error, loading, reload, setData };
 }
 
+/** Diccionario id → etiqueta para mostrar nombres en lugar de identificadores en las tablas. */
+export function useLookup(path: string | null, labelOf: (x: Json) => string) {
+  const { data } = useFetch<{ items: Json[] }>(path);
+  const map = new Map<number, string>((data?.items ?? []).map((x) => [x.id as number, labelOf(x)]));
+  return (id: unknown) => (id === null || id === undefined || id === "" ? "—" : map.get(Number(id)) ?? `#${id}`);
+}
+
+/** Nombres de artículos (SKU · descripción), el caso más frecuente. */
+export function useItemNames() {
+  return useLookup("/items?limit=500", (x) => `${x.sku} · ${x.name}`);
+}
+
 /** Opciones para selects a partir de un listado paginado de maestros. */
 export function useOptions(path: string | null, labelOf: (x: Json) => string) {
   const { data } = useFetch<{ items: Json[] }>(path);

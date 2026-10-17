@@ -8225,7 +8225,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/PlanIn"
+        "$ref": "#/components/schemas/app__modules__quality__router__PlanIn"
        }
       }
      }
@@ -9622,6 +9622,67 @@
       "description": "Empresa sobre la que se opera"
      }
     ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/logistics/dispatches/{d_id}/plan": {
+   "patch": {
+    "tags": [
+     "Logística y despacho"
+    ],
+    "summary": "Plan",
+    "operationId": "plan_api_v1_logistics_dispatches__d_id__plan_patch",
+    "parameters": [
+     {
+      "name": "d_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "D Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__modules__logistics__router__PlanIn"
+       }
+      }
+     }
+    },
     "responses": {
      "200": {
       "description": "Successful Response",
@@ -22953,75 +23014,6 @@
     ],
     "title": "PickingIn"
    },
-   "PlanIn": {
-    "properties": {
-     "code": {
-      "type": "string",
-      "maxLength": 30,
-      "title": "Code"
-     },
-     "name": {
-      "type": "string",
-      "maxLength": 200,
-      "title": "Name"
-     },
-     "stage": {
-      "type": "string",
-      "pattern": "^(receiving|in_process|final|dispatch)$",
-      "title": "Stage"
-     },
-     "item_id": {
-      "anyOf": [
-       {
-        "type": "integer"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Item Id"
-     },
-     "category_id": {
-      "anyOf": [
-       {
-        "type": "integer"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Category Id"
-     },
-     "sampling_rule": {
-      "anyOf": [
-       {
-        "type": "string",
-        "maxLength": 255
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Sampling Rule"
-     },
-     "characteristics": {
-      "items": {
-       "$ref": "#/components/schemas/CharacteristicIn"
-      },
-      "type": "array",
-      "minItems": 1,
-      "title": "Characteristics"
-     }
-    },
-    "type": "object",
-    "required": [
-     "code",
-     "name",
-     "stage",
-     "characteristics"
-    ],
-    "title": "PlanIn"
-   },
    "PoLine": {
     "properties": {
      "item_id": {
@@ -26423,6 +26415,58 @@
     ],
     "title": "IncidentIn"
    },
+   "app__modules__logistics__router__PlanIn": {
+    "properties": {
+     "route_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Route Id"
+     },
+     "carrier_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Carrier Id"
+     },
+     "planned_ship_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Planned Ship Date"
+     },
+     "delivery_address": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Delivery Address"
+     }
+    },
+    "type": "object",
+    "title": "PlanIn"
+   },
    "app__modules__operations__router__IncidentIn": {
     "properties": {
      "incident_type": {
@@ -26449,6 +26493,75 @@
      "description"
     ],
     "title": "IncidentIn"
+   },
+   "app__modules__quality__router__PlanIn": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 30,
+      "title": "Code"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 200,
+      "title": "Name"
+     },
+     "stage": {
+      "type": "string",
+      "pattern": "^(receiving|in_process|final|dispatch)$",
+      "title": "Stage"
+     },
+     "item_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Item Id"
+     },
+     "category_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Category Id"
+     },
+     "sampling_rule": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sampling Rule"
+     },
+     "characteristics": {
+      "items": {
+       "$ref": "#/components/schemas/CharacteristicIn"
+      },
+      "type": "array",
+      "minItems": 1,
+      "title": "Characteristics"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "name",
+     "stage",
+     "characteristics"
+    ],
+    "title": "PlanIn"
    }
   }
  }

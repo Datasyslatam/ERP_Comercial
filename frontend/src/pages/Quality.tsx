@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ActionButton, Badge, DataTable, Form, Modal, Page } from "../components/ui";
 import { Json, post, qs } from "../lib/api";
 import { fmtDate, fmtMoney, fmtNumber } from "../lib/format";
-import { useFetch } from "../lib/hooks";
+import { useFetch, useItemNames, useLookup } from "../lib/hooks";
 import { useSession } from "../lib/session";
 
 export function InspectionsPage() {
@@ -11,11 +11,14 @@ export function InspectionsPage() {
   const { data, reload } = useFetch<Json>(`/quality/inspections${qs({ status })}`);
   const [current, setCurrent] = useState<number | null>(null);
   const detail = useFetch<Json>(current ? `/quality/inspections/${current}` : null);
+  const itemName = useItemNames();
+  const lotName = useLookup("/inventory/lots?limit=500", (x) => x.lot_number);
   return (
     <Page title="Inspecciones de calidad" actions={<select aria-label="Estado" value={status} onChange={(e) => setStatus(e.target.value)}>
       <option value="">Todas</option>{["pending", "accepted", "partial", "rejected"].map((s) => <option key={s} value={s}>{s}</option>)}</select>}>
       <DataTable rows={data?.items} onRowClick={(r) => setCurrent(r.id)} columns={[{ key: "number", title: "Número" },
-        { key: "stage", title: "Etapa" }, { key: "item_id", title: "Artículo" }, { key: "lot_id", title: "Lote" },
+        { key: "stage", title: "Etapa" }, { key: "item_id", title: "Artículo", render: (r) => itemName(r.item_id) },
+        { key: "lot_id", title: "Lote", render: (r) => lotName(r.lot_id) },
         { key: "quantity", title: "Cantidad", align: "right", render: (r) => fmtNumber(r.quantity) },
         { key: "due_date", title: "Fecha límite" }, { key: "status", title: "Estado", render: (r) => <Badge value={r.status} /> }]} />
       {detail.data && current && (

@@ -42,7 +42,7 @@ Configuración, alta de empresa y administrador: [docs/instalacion.md](docs/inst
 ```bash
 pytest -q
 ```
-Resultados de la última ejecución: **63 backend + 5 frontend aprobadas, 0 fallidas**, cobertura 84 % —
+Resultados de la última ejecución: **64 backend + 9 frontend aprobadas, 0 fallidas**, cobertura 84 % —
 detalle y pruebas no ejecutadas en [docs/pruebas.md](docs/pruebas.md).
 
 ## Documentación

@@ -13,3 +13,4 @@ frontend/dist/
 storage/
 backups/
 *.log
+*.tsbuildinfo
