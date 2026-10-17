@@ -1,6 +1,5 @@
-import React from 'react';
 import { store } from '../store';
-import { Settings as SettingsIcon, Building2, MapPin, DollarSign, Database, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, MapPin, Database, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function Settings() {
   const company = store.getCompany();

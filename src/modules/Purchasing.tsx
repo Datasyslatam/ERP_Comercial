@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { store } from '../store';
-import { ShoppingCart, Users, FileText, CheckCircle, Clock, AlertCircle, Plus, Eye, Filter } from 'lucide-react';
+import { ShoppingCart, Users, FileText, CheckCircle, Clock, AlertCircle, Plus, Eye } from 'lucide-react';
 
 type Tab = 'orders' | 'requests' | 'suppliers' | 'indicators';
 

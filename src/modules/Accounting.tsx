@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { store } from '../store';
 import { Calculator, BookOpen, FileText, DollarSign, Building2, TrendingUp, Plus } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 type Tab = 'entries' | 'chart' | 'periods' | 'receivable' | 'payable' | 'reports';
 
@@ -106,7 +105,7 @@ export default function Accounting() {
                   const totalDebit = je.lines.reduce((s, l) => s + l.debit, 0);
                   const totalCredit = je.lines.reduce((s, l) => s + l.credit, 0);
                   return (
-                    <React.Fragment key={je.id}>
+                    <div key={je.id}>
                       <tr className="border-t border-gray-100 hover:bg-gray-50">
                         <td className="px-4 py-3 font-mono text-xs font-medium">{je.number}</td>
                         <td className="px-4 py-3">{new Date(je.date).toLocaleDateString()}</td>
@@ -136,7 +135,7 @@ export default function Accounting() {
                           </tr>
                         );
                       })}
-                    </React.Fragment>
+                    </div>
                   );
                 })}
               </tbody>
@@ -301,16 +300,28 @@ export default function Accounting() {
         <div className="space-y-6">
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="font-semibold mb-4">Estado de Resultados (Acumulado)</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={incomeData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
-                <Bar dataKey="ingresos" fill="#3B82F6" name="Ingresos" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="gastos" fill="#EF4444" name="Gastos" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="flex items-center gap-4 mb-2">
+              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-blue-500" /><span className="text-xs text-gray-500">Ingresos</span></div>
+              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-red-500" /><span className="text-xs text-gray-500">Gastos</span></div>
+            </div>
+            <svg viewBox="0 0 420 200" className="w-full h-48">
+              {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => (
+                <line key={i} x1={30} y1={10 + 160 * (1 - pct)} x2={410} y2={10 + 160 * (1 - pct)} stroke="#f0f0f0" strokeWidth={1} />
+              ))}
+              {incomeData.map((d, i) => {
+                const x = 40 + i * 75;
+                const maxVal = 25000;
+                const h1 = (d.ingresos / maxVal) * 160;
+                const h2 = (d.gastos / maxVal) * 160;
+                return (
+                  <g key={i}>
+                    <rect x={x} y={170 - h1} width={28} height={h1} fill="#3B82F6" rx={3} opacity={0.85} />
+                    <rect x={x + 32} y={170 - h2} width={28} height={h2} fill="#EF4444" rx={3} opacity={0.85} />
+                    <text x={x + 30} y={188} textAnchor="middle" className="text-[10px] fill-gray-500">{d.mes}</text>
+                  </g>
+                );
+              })}
+            </svg>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white rounded-xl border border-gray-200 p-5">

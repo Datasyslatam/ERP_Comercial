@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { store } from '../store';
 import { FileText, Send, CheckCircle, XCircle, Clock, AlertCircle, Plus, Eye, Printer } from 'lucide-react';
 

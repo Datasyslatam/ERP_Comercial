@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import type { User } from './types';
 import { store } from './store';
 import Login from './components/Login';
@@ -19,10 +18,10 @@ import Settings from './modules/Settings';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentModule, setCurrentModule] = useState('dashboard');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
     const savedUser = localStorage.getItem('datasys_erp_session');
     if (savedUser) {
       try {
@@ -43,6 +42,11 @@ function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('datasys_erp_session');
+    setCurrentModule('dashboard');
+  };
+
+  const handleNavigate = (module: string) => {
+    setCurrentModule(module);
   };
 
   if (loading) {
@@ -58,32 +62,32 @@ function App() {
     );
   }
 
+  const renderModule = () => {
+    switch (currentModule) {
+      case 'dashboard': return <Dashboard />;
+      case 'purchasing': return <Purchasing />;
+      case 'inventory': return <Inventory />;
+      case 'production': return <Production />;
+      case 'accounting': return <Accounting />;
+      case 'invoicing': return <Invoicing />;
+      case 'quality': return <Quality />;
+      case 'logistics': return <Logistics />;
+      case 'users': return <UsersModule />;
+      case 'reports': return <Reports />;
+      case 'import': return <ImportData />;
+      case 'settings': return <Settings />;
+      default: return <Dashboard />;
+    }
+  };
+
+  if (!currentUser) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={currentUser ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
-        
-        {currentUser ? (
-          <>
-            <Route path="/dashboard" element={<Layout currentUser={currentUser} onLogout={handleLogout}><Dashboard /></Layout>} />
-            <Route path="/purchasing" element={<Layout currentUser={currentUser} onLogout={handleLogout}><Purchasing /></Layout>} />
-            <Route path="/inventory" element={<Layout currentUser={currentUser} onLogout={handleLogout}><Inventory /></Layout>} />
-            <Route path="/production" element={<Layout currentUser={currentUser} onLogout={handleLogout}><Production /></Layout>} />
-            <Route path="/accounting" element={<Layout currentUser={currentUser} onLogout={handleLogout}><Accounting /></Layout>} />
-            <Route path="/invoicing" element={<Layout currentUser={currentUser} onLogout={handleLogout}><Invoicing /></Layout>} />
-            <Route path="/quality" element={<Layout currentUser={currentUser} onLogout={handleLogout}><Quality /></Layout>} />
-            <Route path="/logistics" element={<Layout currentUser={currentUser} onLogout={handleLogout}><Logistics /></Layout>} />
-            <Route path="/users" element={<Layout currentUser={currentUser} onLogout={handleLogout}><UsersModule /></Layout>} />
-            <Route path="/reports" element={<Layout currentUser={currentUser} onLogout={handleLogout}><Reports /></Layout>} />
-            <Route path="/import" element={<Layout currentUser={currentUser} onLogout={handleLogout}><ImportData /></Layout>} />
-            <Route path="/settings" element={<Layout currentUser={currentUser} onLogout={handleLogout}><Settings /></Layout>} />
-            <Route path="*" element={<Navigate to="/dashboard" />} />
-          </>
-        ) : (
-          <Route path="*" element={<Navigate to="/login" />} />
-        )}
-      </Routes>
-    </BrowserRouter>
+    <Layout currentUser={currentUser} onLogout={handleLogout} currentModule={currentModule} onNavigate={handleNavigate}>
+      {renderModule()}
+    </Layout>
   );
 }
 

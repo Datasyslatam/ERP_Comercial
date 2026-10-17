@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { store } from '../store';
 import { Package, Warehouse, ArrowDownUp, AlertTriangle, TrendingDown, BarChart3, Plus, Search } from 'lucide-react';
 

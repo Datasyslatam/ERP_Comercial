@@ -1,42 +1,41 @@
-import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { store } from '../store';
 import type { User } from '../types';
 import {
   LayoutDashboard, ShoppingCart, Package, Factory, Calculator,
   FileText, Shield, Truck, Users, BarChart3, Settings, LogOut,
   Menu, X, ChevronDown, Bell, Search, Database, AlertTriangle,
-  ClipboardCheck, Warehouse
+  ClipboardCheck
 } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
   currentUser: User;
   onLogout: () => void;
+  currentModule: string;
+  onNavigate: (module: string) => void;
 }
 
 const menuItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, module: 'dashboard' },
-  { path: '/purchasing', label: 'Compras', icon: ShoppingCart, module: 'purchasing' },
-  { path: '/inventory', label: 'Inventario', icon: Package, module: 'inventory' },
-  { path: '/production', label: 'Producción', icon: Factory, module: 'production' },
-  { path: '/accounting', label: 'Contabilidad', icon: Calculator, module: 'accounting' },
-  { path: '/invoicing', label: 'Facturación', icon: FileText, module: 'invoicing' },
-  { path: '/quality', label: 'Calidad', icon: Shield, module: 'quality' },
-  { path: '/logistics', label: 'Logística', icon: Truck, module: 'logistics' },
-  { path: '/users', label: 'Usuarios', icon: Users, module: 'users' },
-  { path: '/reports', label: 'Reportes', icon: BarChart3, module: 'reports' },
-  { path: '/import', label: 'Importar Datos', icon: Database, module: 'import' },
-  { path: '/settings', label: 'Configuración', icon: Settings, module: 'settings' },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'purchasing', label: 'Compras', icon: ShoppingCart },
+  { id: 'inventory', label: 'Inventario', icon: Package },
+  { id: 'production', label: 'Producción', icon: Factory },
+  { id: 'accounting', label: 'Contabilidad', icon: Calculator },
+  { id: 'invoicing', label: 'Facturación', icon: FileText },
+  { id: 'quality', label: 'Calidad', icon: Shield },
+  { id: 'logistics', label: 'Logística', icon: Truck },
+  { id: 'users', label: 'Usuarios', icon: Users },
+  { id: 'reports', label: 'Reportes', icon: BarChart3 },
+  { id: 'import', label: 'Importar Datos', icon: Database },
+  { id: 'settings', label: 'Configuración', icon: Settings },
 ];
 
-export default function Layout({ children, currentUser, onLogout }: LayoutProps) {
+export default function Layout({ children, currentUser, onLogout, currentModule, onNavigate }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
   const company = store.getCompany();
 
   const pendingApprovals = store.getPurchaseRequests().filter(pr => pr.status === 'pending_approval').length;
@@ -53,13 +52,20 @@ export default function Layout({ children, currentUser, onLogout }: LayoutProps)
       entityId: currentUser.id, entityType: 'user',
       details: 'Cierre de sesión', timestamp: new Date().toISOString(), ipAddress: '192.168.1.100'
     });
+    setUserMenuOpen(false);
     onLogout();
-    navigate('/login');
+  };
+
+  const handleNav = (moduleId: string) => {
+    onNavigate(moduleId);
+    setMobileMenuOpen(false);
+    setUserMenuOpen(false);
+    setNotifOpen(false);
   };
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Sidebar */}
+      {/* Sidebar Desktop */}
       <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-slate-900 text-white flex flex-col transition-all duration-300 flex-shrink-0 hidden lg:flex`}>
         <div className="p-4 border-b border-slate-700">
           <div className="flex items-center gap-3">
@@ -76,18 +82,18 @@ export default function Layout({ children, currentUser, onLogout }: LayoutProps)
         </div>
         <nav className="flex-1 overflow-y-auto py-4">
           {menuItems.map(item => {
-            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+            const isActive = currentModule === item.id;
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg mb-1 transition-colors ${
+              <button
+                key={item.id}
+                onClick={() => handleNav(item.id)}
+                className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg mb-1 transition-colors w-[calc(100%-1rem)] text-left ${
                   isActive ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`}
               >
                 <item.icon size={20} className="flex-shrink-0" />
                 {sidebarOpen && <span className="text-sm truncate">{item.label}</span>}
-              </Link>
+              </button>
             );
           })}
         </nav>
@@ -119,19 +125,18 @@ export default function Layout({ children, currentUser, onLogout }: LayoutProps)
             </div>
             <nav className="flex-1 overflow-y-auto py-4">
               {menuItems.map(item => {
-                const isActive = location.pathname === item.path;
+                const isActive = currentModule === item.id;
                 return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg mb-1 transition-colors ${
+                  <button
+                    key={item.id}
+                    onClick={() => handleNav(item.id)}
+                    className={`flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg mb-1 transition-colors w-[calc(100%-1rem)] text-left ${
                       isActive ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'
                     }`}
                   >
                     <item.icon size={20} />
                     <span className="text-sm">{item.label}</span>
-                  </Link>
+                  </button>
                 );
               })}
             </nav>
@@ -177,31 +182,31 @@ export default function Layout({ children, currentUser, onLogout }: LayoutProps)
                   </div>
                   <div className="max-h-64 overflow-y-auto">
                     {pendingApprovals > 0 && (
-                      <Link to="/purchasing" onClick={() => setNotifOpen(false)} className="flex items-start gap-3 p-3 hover:bg-gray-50 border-b border-gray-50">
+                      <button onClick={() => handleNav('purchasing')} className="flex items-start gap-3 p-3 hover:bg-gray-50 border-b border-gray-50 w-full text-left">
                         <AlertTriangle size={16} className="text-amber-500 mt-0.5 flex-shrink-0" />
                         <div>
                           <p className="text-sm font-medium">{pendingApprovals} solicitud(es) de compra pendiente(s) de aprobación</p>
                           <p className="text-xs text-gray-500">Módulo de Compras</p>
                         </div>
-                      </Link>
+                      </button>
                     )}
                     {lowStockItems > 0 && (
-                      <Link to="/inventory" onClick={() => setNotifOpen(false)} className="flex items-start gap-3 p-3 hover:bg-gray-50 border-b border-gray-50">
+                      <button onClick={() => handleNav('inventory')} className="flex items-start gap-3 p-3 hover:bg-gray-50 border-b border-gray-50 w-full text-left">
                         <Package size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
                         <div>
                           <p className="text-sm font-medium">{lowStockItems} artículo(s) bajo punto de reorden</p>
                           <p className="text-xs text-gray-500">Módulo de Inventario</p>
                         </div>
-                      </Link>
+                      </button>
                     )}
                     {openNC > 0 && (
-                      <Link to="/quality" onClick={() => setNotifOpen(false)} className="flex items-start gap-3 p-3 hover:bg-gray-50">
+                      <button onClick={() => handleNav('quality')} className="flex items-start gap-3 p-3 hover:bg-gray-50 w-full text-left">
                         <ClipboardCheck size={16} className="text-orange-500 mt-0.5 flex-shrink-0" />
                         <div>
                           <p className="text-sm font-medium">{openNC} no conformidad(es) abierta(s)</p>
                           <p className="text-xs text-gray-500">Módulo de Calidad</p>
                         </div>
-                      </Link>
+                      </button>
                     )}
                     {totalAlerts === 0 && (
                       <div className="p-4 text-center text-sm text-gray-500">Sin alertas pendientes</div>
@@ -233,9 +238,9 @@ export default function Layout({ children, currentUser, onLogout }: LayoutProps)
                     <p className="text-xs text-gray-400 mt-1">Sede: {store.getBranch(currentUser.branchId)?.name || 'N/A'}</p>
                   </div>
                   <div className="p-2">
-                    <Link to="/settings" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    <button onClick={() => handleNav('settings')} className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg w-full text-left">
                       <Settings size={16} /> Configuración
-                    </Link>
+                    </button>
                     <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg w-full text-left">
                       <LogOut size={16} /> Cerrar Sesión
                     </button>

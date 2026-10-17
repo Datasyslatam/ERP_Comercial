@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { store } from '../store';
 import { Shield, ClipboardCheck, AlertTriangle, CheckCircle, XCircle, Plus, Eye } from 'lucide-react';
 

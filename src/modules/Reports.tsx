@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { store } from '../store';
-import { BarChart3, Download, Filter, Calendar, FileSpreadsheet, FileText, Printer } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { BarChart3, Download, FileSpreadsheet, FileText, Printer, Download as DownloadIcon } from 'lucide-react';
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState('financial');
@@ -83,17 +82,33 @@ export default function Reports() {
                 <button className="p-2 hover:bg-gray-100 rounded"><Download size={16} className="text-gray-500" /></button>
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
-                <Line type="monotone" dataKey="ingresos" stroke="#3B82F6" strokeWidth={2} name="Ingresos" dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="gastos" stroke="#EF4444" strokeWidth={2} name="Gastos" dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="utilidad" stroke="#10B981" strokeWidth={2} name="Utilidad" dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="flex items-center gap-4 mb-2">
+              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-blue-500" /><span className="text-xs text-gray-500">Ingresos</span></div>
+              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-red-500" /><span className="text-xs text-gray-500">Gastos</span></div>
+              <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-emerald-500" /><span className="text-xs text-gray-500">Utilidad</span></div>
+            </div>
+            <svg viewBox="0 0 440 220" className="w-full h-52">
+              {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => (
+                <line key={i} x1={30} y1={10 + 170 * (1 - pct)} x2={430} y2={10 + 170 * (1 - pct)} stroke="#f0f0f0" strokeWidth={1} />
+              ))}
+              {(() => {
+                const maxVal = 25000;
+                const keys = ['ingresos', 'gastos', 'utilidad'] as const;
+                const colors = ['#3B82F6', '#EF4444', '#10B981'];
+                return keys.map((key, ki) => {
+                  const points = monthlyData.map((d, i) => {
+                    const x = 40 + (i / (monthlyData.length - 1)) * 380;
+                    const y = 180 - ((d as any)[key] / maxVal) * 170;
+                    return `${x},${y}`;
+                  }).join(' ');
+                  return <polyline key={ki} points={points} fill="none" stroke={colors[ki]} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />;
+                });
+              })()}
+              {monthlyData.map((d, i) => {
+                const x = 40 + (i / (monthlyData.length - 1)) * 380;
+                return <text key={i} x={x} y={200} textAnchor="middle" className="text-[10px] fill-gray-500">{d.mes}</text>;
+              })}
+            </svg>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -179,14 +194,30 @@ export default function Reports() {
             <div className="bg-white rounded-xl border border-gray-200 p-5">
               <h3 className="font-semibold mb-4">Antigüedad de Inventario</h3>
               <div className="flex items-center gap-6">
-                <ResponsiveContainer width="50%" height={200}>
-                  <PieChart>
-                    <Pie data={inventoryAging} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value">
-                      {inventoryAging.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <svg viewBox="0 0 120 120" className="w-40 h-40">
+                  {(() => {
+                    const total = inventoryAging.reduce((s, i) => s + i.value, 0);
+                    let cumulative = 0;
+                    return inventoryAging.map((item, i) => {
+                      const pct = item.value / total;
+                      const startAngle = cumulative * 2 * Math.PI - Math.PI / 2;
+                      cumulative += pct;
+                      const endAngle = cumulative * 2 * Math.PI - Math.PI / 2;
+                      const largeArc = pct > 0.5 ? 1 : 0;
+                      const x1 = 60 + 50 * Math.cos(startAngle);
+                      const y1 = 60 + 50 * Math.sin(startAngle);
+                      const x2 = 60 + 50 * Math.cos(endAngle);
+                      const y2 = 60 + 50 * Math.sin(endAngle);
+                      const ix1 = 60 + 30 * Math.cos(startAngle);
+                      const iy1 = 60 + 30 * Math.sin(startAngle);
+                      const ix2 = 60 + 30 * Math.cos(endAngle);
+                      const iy2 = 60 + 30 * Math.sin(endAngle);
+                      return (
+                        <path key={i} d={`M ${x1} ${y1} A 50 50 0 ${largeArc} 1 ${x2} ${y2} L ${ix2} ${iy2} A 30 30 0 ${largeArc} 0 ${ix1} ${iy1} Z`} fill={item.color} opacity={0.85} />
+                      );
+                    });
+                  })()}
+                </svg>
                 <div className="space-y-2">
                   {inventoryAging.map(item => (
                     <div key={item.name} className="flex items-center gap-2">

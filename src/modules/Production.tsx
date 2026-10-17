@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { store } from '../store';
 import { Factory, Clock, CheckCircle, AlertCircle, Plus, Play, Pause } from 'lucide-react';
 
