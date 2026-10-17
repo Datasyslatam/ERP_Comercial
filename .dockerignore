@@ -1,0 +1,13 @@
+.git
+.venv
+**/__pycache__
+**/node_modules
+frontend/dist
+.env
+.env.*
+!.env.example
+storage
+backups
+.pytest_cache
+htmlcov
+.claude

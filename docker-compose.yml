@@ -1,0 +1,106 @@
+# Despliegue en servidor propio o VM en la nube: docker compose --env-file .env up -d --build
+# Servicios: base de datos, API, worker (integraciones/alertas), web (Caddy + SPA + HTTPS) y respaldos diarios.
+name: datasys-erp
+
+x-api-env: &api-env
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  JWT_SECRET: ${JWT_SECRET}
+  AUTH_MODE: ${AUTH_MODE:-local}
+  OIDC_ISSUER: ${OIDC_ISSUER:-}
+  OIDC_AUDIENCE: ${OIDC_AUDIENCE:-}
+  OIDC_JWKS_URL: ${OIDC_JWKS_URL:-}
+  CORS_ORIGINS: ${CORS_ORIGINS:-}
+  EINVOICE_ADAPTER_CO: ${EINVOICE_ADAPTER_CO:-sandbox_dian}
+  EINVOICE_ADAPTER_VE: ${EINVOICE_ADAPTER_VE:-sandbox_seniat}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  TRUSTED_PROXY_COUNT: "1"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Sin puertos publicados: solo accesible desde la red interna de Docker.
+
+  api:
+    build: { context: ., dockerfile: deploy/docker/api.Dockerfile }
+    image: datasys-erp-api:${APP_VERSION:-latest}
+    restart: unless-stopped
+    command: ["api"]
+    environment:
+      <<: *api-env
+      RUN_MIGRATIONS: "1"
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      db: { condition: service_healthy }
+
+  worker:
+    image: datasys-erp-api:${APP_VERSION:-latest}
+    restart: unless-stopped
+    command: ["worker"]
+    environment: *api-env
+    volumes:
+      - storage:/data/storage
+    depends_on:
+      api: { condition: service_healthy }
+
+  web:
+    build: { context: ., dockerfile: deploy/docker/web.Dockerfile }
+    image: datasys-erp-web:${APP_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      API_UPSTREAM: api:8000
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api: { condition: service_healthy }
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - ./database/scripts:/scripts:ro
+      - ${BACKUP_HOST_DIR:-./backups}:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    # Respaldo al iniciar y luego cada 24 h. Copie /backups fuera del servidor (ver docs/administracion.md).
+    command: ["while true; do /scripts/backup.sh || echo 'RESPALDO FALLIDO'; sleep 86400; done"]
+    depends_on:
+      db: { condition: service_healthy }
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    profiles: ["monitoring"]
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+
+volumes:
+  pgdata:
+  storage:
+  caddy_data:
+  caddy_config:
