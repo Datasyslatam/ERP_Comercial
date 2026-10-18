@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 // Iconos lineales del menú lateral: trazo principal en cian (.ico-main) y detalle en lima (.ico-acc).
 function Icon({ children }: { children: ReactNode }) {
@@ -71,15 +71,17 @@ export function Chevron({ className = "" }: { className?: string }) {
 
 /** Marca de Datasys Latam Group: nodos conectados sobre un cuadro cobalto→cian. */
 export function BrandMark() {
+  // id único por instancia: con un id repetido, una copia oculta (display: none) deja sin degradado a las demás.
+  const grad = `brand-grad-${useId().replace(/:/g, "")}`;
   return (
     <svg className="brand-mark" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" focusable="false">
       <defs>
-        <linearGradient id="brand-grad" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={grad} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#0052CC" />
           <stop offset="1" stopColor="#00B4D8" />
         </linearGradient>
       </defs>
-      <rect width="32" height="32" rx="8" fill="url(#brand-grad)" />
+      <rect width="32" height="32" rx="8" fill={`url(#${grad})`} />
       <path d="M10 9.5v13h5.5a6.5 6.5 0 0 0 0-13z" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinejoin="round" />
       <path d="M15.5 16h7" stroke="#FFFFFF" strokeOpacity=".7" strokeWidth="1.4" strokeLinecap="round" />
       <circle cx="23" cy="16" r="2.2" fill="#A3E635" />
@@ -112,4 +114,34 @@ export const LogoutIcon = () => (
     <path className="ico-main" d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
     <path className="ico-acc" d="M10 16l-4-4 4-4M6 12h9" />
   </TopIcon>
+);
+
+export const MailIcon = () => (
+  <TopIcon>
+    <rect className="ico-main" x="3" y="5" width="18" height="14" rx="2" />
+    <path className="ico-acc" d="M3.5 6.5l8.5 6 8.5-6" />
+  </TopIcon>
+);
+
+export const LockIcon = () => (
+  <TopIcon>
+    <rect className="ico-main" x="4.5" y="10.5" width="15" height="10" rx="2" />
+    <path className="ico-main" d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+    <path className="ico-acc" d="M12 14.5v2.5" />
+  </TopIcon>
+);
+
+export const EyeIcon = ({ off = false }: { off?: boolean }) => (
+  <TopIcon>
+    <path className="ico-main" d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+    <circle className="ico-acc" cx="12" cy="12" r="2.8" />
+    {off && <path className="ico-main" d="M4 4l16 16" />}
+  </TopIcon>
+);
+
+export const ArrowRightIcon = () => (
+  <svg className="arrow-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
 );

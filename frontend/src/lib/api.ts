@@ -28,14 +28,67 @@ export function hasSession() {
   return !!sessionStorage.getItem(RT_KEY);
 }
 
+export const OFFLINE_MESSAGE =
+  "No hay conexión con el servidor del ERP. Verifique que la API esté en ejecución e intente de nuevo.";
+
+/** fetch que convierte una caída de red en un error legible. */
+async function send(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch {
+    throw new ApiError(0, OFFLINE_MESSAGE);
+  }
+}
+
+/** Lee el cuerpo sin fallar si llega vacío o no es JSON (p. ej. el proxy de desarrollo sin API detrás). */
+async function readBody(r: Response): Promise<Json> {
+  const text = await r.text();
+  if (!text) return null;
+  if ((r.headers.get("content-type") ?? "").includes("json")) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  }
+  return text;
+}
+
+function failure(r: Response, data: Json, fallback: string): ApiError {
+  const err = data?.error;
+  const fieldErrors = err?.details?.errors?.map((e: Json) => `${e.loc.slice(1).join(".")}: ${e.msg}`).join("; ");
+  if (fieldErrors || err?.message) return new ApiError(r.status, fieldErrors || err.message, err?.details);
+  if (r.status >= 500) {
+    // Sin cuerpo de error del ERP: la API no respondió (caída, reiniciando o proxy sin destino).
+    return new ApiError(r.status, r.status === 500 && !data ? OFFLINE_MESSAGE
+      : `El servidor del ERP no está disponible (error ${r.status}). Intente de nuevo en unos minutos.`);
+  }
+  return new ApiError(r.status, fallback);
+}
+
+/** Estado del servidor para la pantalla de ingreso: en línea (con su entorno) o sin conexión. */
+export async function serverStatus(timeoutMs = 4000): Promise<{ online: boolean; environment?: string }> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(`${import.meta.env.VITE_API_URL ?? ""}/health/ready`, { signal: ctrl.signal });
+    const body = r.ok ? await readBody(r) : null;
+    return body?.status === "ok" ? { online: true, environment: body.environment } : { online: false };
+  } catch {
+    return { online: false };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function login(email: string, password: string) {
-  const r = await fetch(`${BASE}/auth/login`, {
+  const r = await send(`${BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  const body = await r.json();
-  if (!r.ok) throw new ApiError(r.status, body?.error?.message ?? "Error de autenticación");
+  const body = await readBody(r);
+  if (!r.ok || !body?.access_token) throw failure(r, body, "Error de autenticación");
   accessToken = body.access_token;
   sessionStorage.setItem(RT_KEY, body.refresh_token);
 }
@@ -52,16 +105,18 @@ function refresh(): Promise<boolean> {
 async function doRefresh(): Promise<boolean> {
   const rt = sessionStorage.getItem(RT_KEY);
   if (!rt) return false;
-  const r = await fetch(`${BASE}/auth/refresh`, {
+  const r = await send(`${BASE}/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token: rt }),
   });
   if (!r.ok) {
-    sessionStorage.removeItem(RT_KEY);
+    // Solo un rechazo del servidor invalida la sesión; una caída temporal de la API no.
+    if (r.status < 500) sessionStorage.removeItem(RT_KEY);
     return false;
   }
-  const body = await r.json();
+  const body = await readBody(r);
+  if (!body?.access_token) return false;
   accessToken = body.access_token;
   sessionStorage.setItem(RT_KEY, body.refresh_token);
   return true;
@@ -91,7 +146,7 @@ async function raw(method: string, path: string, body?: Json, retry = true): Pro
     headers["Content-Type"] = "application/json";
     payload = JSON.stringify(body);
   }
-  const r = await fetch(`${BASE}${path}`, { method, headers, body: payload });
+  const r = await send(`${BASE}${path}`, { method, headers, body: payload });
   if (r.status === 401 && retry && (await refresh())) return raw(method, path, body, false);
   return r;
 }
@@ -99,13 +154,8 @@ async function raw(method: string, path: string, body?: Json, retry = true): Pro
 export async function api<T = Json>(method: string, path: string, body?: Json): Promise<T> {
   const r = await raw(method, path, body);
   if (r.status === 204) return undefined as T;
-  const ct = r.headers.get("content-type") ?? "";
-  const data = ct.includes("json") ? await r.json() : await r.text();
-  if (!r.ok) {
-    const err = (data as Json)?.error;
-    const fieldErrors = err?.details?.errors?.map((e: Json) => `${e.loc.slice(1).join(".")}: ${e.msg}`).join("; ");
-    throw new ApiError(r.status, fieldErrors || err?.message || `Error ${r.status}`, err?.details);
-  }
+  const data = await readBody(r);
+  if (!r.ok) throw failure(r, data, `Error ${r.status}`);
   return data as T;
 }
 
