@@ -2,8 +2,14 @@
 
 ## Ingreso y empresa activa
 1. Ingrese con su correo y contraseña. Tras 5 intentos fallidos el usuario se bloquea 15 minutos.
+   Bajo el formulario se indica si el servidor está **en línea** (y en qué entorno) o **sin conexión**;
+   si aparece sin conexión, el problema es la API y no sus credenciales: avise a soporte.
 2. En la barra superior seleccione la **empresa** (Colombia o Venezuela). Todo lo que vea y registre
    pertenece a esa empresa; el menú muestra solo lo que su rol permite.
+   Las secciones del menú lateral (Gerencia, Compras, Almacén…) se despliegan con un clic y se pliegan
+   con otro; la sección de la pantalla abierta se despliega sola y la opción actual queda resaltada.
+   La barra superior muestra dónde está (sección › pantalla), la empresa activa con su país, su usuario y
+   el botón **Salir**.
 3. La sesión se renueva sola mientras la pestaña esté abierta; al cerrarla debe ingresar de nuevo.
 
 ## Dashboard ejecutivo

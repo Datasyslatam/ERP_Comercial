@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useSession } from "../lib/session";
+import { BrandMark, BuildingIcon, Chevron, LogoutIcon, MenuIcon, SectionIcon } from "./NavIcons";
 
 interface NavItem { to: string; label: string; perm: string; module?: string }
 
@@ -57,31 +58,110 @@ export const NAV: { section: string; items: NavItem[] }[] = [
   ] },
 ];
 
+/** Sección del menú a la que pertenece la ruta actual (para desplegarla al navegar). */
+export function sectionOf(pathname: string): string | undefined {
+  return NAV.find((s) => s.items.some((i) => (i.to === "/" ? pathname === "/" : pathname.startsWith(i.to))))?.section;
+}
+
+/** Opción del menú que corresponde a la ruta actual (la más específica), para la ruta de navegación. */
+export function pageOf(pathname: string): { section: string; label: string } | undefined {
+  let best: { section: string; label: string; len: number } | undefined;
+  for (const s of NAV) for (const i of s.items) {
+    const hit = i.to === "/" ? pathname === "/" : pathname === i.to || pathname.startsWith(`${i.to}/`);
+    if (hit && (!best || i.to.length > best.len)) best = { section: s.section, label: i.label, len: i.to.length };
+  }
+  return best && { section: best.section, label: best.label };
+}
+
+const COUNTRY: Record<string, string> = { CO: "Colombia", VE: "Venezuela" };
+
+function initials(name?: string) {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() || "?";
+}
+
 export function Layout() {
   const { me, company, selectCompany, logout, can, moduleOn } = useSession();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
+  const page = pageOf(pathname);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set([sectionOf(pathname) ?? NAV[0].section]));
+  useEffect(() => {
+    const current = sectionOf(pathname);
+    if (current) setExpanded((prev) => (prev.has(current) ? prev : new Set(prev).add(current)));
+  }, [pathname]);
+  const toggle = (section: string) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (!next.delete(section)) next.add(section);
+    return next;
+  });
   return (
     <div className="shell">
       <header className="topbar">
-        <button className="menu-btn secondary" aria-label="Menú" onClick={() => setOpen(!open)}>☰</button>
-        <strong className="brand">DATASYS ERP</strong>
-        {me && me.companies.length > 0 && (
-          <select aria-label="Empresa" value={company?.id ?? ""} onChange={(e) => selectCompany(Number(e.target.value))}>
-            {me.companies.map((c) => <option key={c.id} value={c.id}>{c.code} · {c.name} ({c.country})</option>)}
-          </select>
+        <div className="topbar-brand">
+          <button className="menu-btn icon-btn" aria-label="Menú" aria-expanded={open} onClick={() => setOpen(!open)}>
+            <MenuIcon />
+          </button>
+          <BrandMark />
+          <div className="brand-text">
+            <strong>DATASYS</strong>
+            <span>LATAM GROUP · ERP</span>
+          </div>
+        </div>
+        {page && (
+          <nav className="crumbs hide-sm" aria-label="Ruta de navegación">
+            <span>{page.section}</span>
+            <Chevron />
+            <span aria-current="page">{page.label}</span>
+          </nav>
         )}
         <span className="spacer" />
-        <span className="muted hide-sm">{me?.full_name}</span>
-        <button className="secondary" onClick={logout}>Salir</button>
+        {me && me.companies.length > 0 && (
+          <label className="company-switch" title="Empresa activa">
+            <BuildingIcon />
+            <select aria-label="Empresa" value={company?.id ?? ""} onChange={(e) => selectCompany(Number(e.target.value))}>
+              {me.companies.map((c) => <option key={c.id} value={c.id}>{c.code} · {c.name} ({c.country})</option>)}
+            </select>
+            {company && <span className="country-tag" title={COUNTRY[company.country] ?? company.country}>{company.country}</span>}
+          </label>
+        )}
+        {me && (
+          <div className="user-chip" title={me.email}>
+            <span className="avatar" aria-hidden="true">{initials(me.full_name)}</span>
+            <span className="user-meta hide-sm">
+              <strong>{me.full_name}</strong>
+              <small>{me.email}</small>
+            </span>
+          </div>
+        )}
+        <button className="logout-btn" onClick={logout} aria-label="Salir" title="Cerrar sesión">
+          <LogoutIcon /><span className="hide-sm">Salir</span>
+        </button>
       </header>
-      <nav className={`sidebar ${open ? "open" : ""}`} onClick={() => setOpen(false)}>
+      <nav className={`sidebar ${open ? "open" : ""}`} aria-label="Menú principal">
         {NAV.map((s) => {
           const items = s.items.filter((i) => can(i.perm) && (!i.module || moduleOn(i.module)));
           if (!items.length) return null;
+          const isOpen = expanded.has(s.section);
+          const id = `nav-${s.section.normalize("NFD").replace(/[^a-zA-Z]+/g, "-").toLowerCase()}`;
           return (
-            <div key={s.section}>
-              <h4>{s.section}</h4>
-              {items.map((i) => <NavLink key={i.to} to={i.to} end={i.to === "/"}>{i.label}</NavLink>)}
+            <div key={s.section} className={`nav-section ${isOpen ? "expanded" : ""}`}>
+              <button type="button" className="nav-section-btn" aria-expanded={isOpen} aria-controls={id}
+                onClick={() => toggle(s.section)}>
+                <SectionIcon section={s.section} />
+                <span className="nav-section-label">{s.section}</span>
+                <Chevron />
+              </button>
+              <div id={id} className="nav-items" aria-hidden={!isOpen}>
+                <div>
+                  {items.map((i) => (
+                    <NavLink key={i.to} to={i.to} end={i.to === "/"} tabIndex={isOpen ? undefined : -1}
+                      onClick={() => setOpen(false)}>
+                      <Chevron className="nav-pointer" />{i.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
             </div>
           );
         })}
