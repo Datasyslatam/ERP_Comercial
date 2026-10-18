@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useSession } from "../lib/session";
+import { Chevron, SectionIcon } from "./NavIcons";
 
 interface NavItem { to: string; label: string; perm: string; module?: string }
 
@@ -57,9 +58,25 @@ export const NAV: { section: string; items: NavItem[] }[] = [
   ] },
 ];
 
+/** Sección del menú a la que pertenece la ruta actual (para desplegarla al navegar). */
+export function sectionOf(pathname: string): string | undefined {
+  return NAV.find((s) => s.items.some((i) => (i.to === "/" ? pathname === "/" : pathname.startsWith(i.to))))?.section;
+}
+
 export function Layout() {
   const { me, company, selectCompany, logout, can, moduleOn } = useSession();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set([sectionOf(pathname) ?? NAV[0].section]));
+  useEffect(() => {
+    const current = sectionOf(pathname);
+    if (current) setExpanded((prev) => (prev.has(current) ? prev : new Set(prev).add(current)));
+  }, [pathname]);
+  const toggle = (section: string) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (!next.delete(section)) next.add(section);
+    return next;
+  });
   return (
     <div className="shell">
       <header className="topbar">
@@ -74,14 +91,30 @@ export function Layout() {
         <span className="muted hide-sm">{me?.full_name}</span>
         <button className="secondary" onClick={logout}>Salir</button>
       </header>
-      <nav className={`sidebar ${open ? "open" : ""}`} onClick={() => setOpen(false)}>
+      <nav className={`sidebar ${open ? "open" : ""}`} aria-label="Menú principal">
         {NAV.map((s) => {
           const items = s.items.filter((i) => can(i.perm) && (!i.module || moduleOn(i.module)));
           if (!items.length) return null;
+          const isOpen = expanded.has(s.section);
+          const id = `nav-${s.section.normalize("NFD").replace(/[^a-zA-Z]+/g, "-").toLowerCase()}`;
           return (
-            <div key={s.section}>
-              <h4>{s.section}</h4>
-              {items.map((i) => <NavLink key={i.to} to={i.to} end={i.to === "/"}>{i.label}</NavLink>)}
+            <div key={s.section} className={`nav-section ${isOpen ? "expanded" : ""}`}>
+              <button type="button" className="nav-section-btn" aria-expanded={isOpen} aria-controls={id}
+                onClick={() => toggle(s.section)}>
+                <SectionIcon section={s.section} />
+                <span className="nav-section-label">{s.section}</span>
+                <Chevron />
+              </button>
+              <div id={id} className="nav-items" aria-hidden={!isOpen}>
+                <div>
+                  {items.map((i) => (
+                    <NavLink key={i.to} to={i.to} end={i.to === "/"} tabIndex={isOpen ? undefined : -1}
+                      onClick={() => setOpen(false)}>
+                      <Chevron className="nav-pointer" />{i.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
             </div>
           );
         })}
