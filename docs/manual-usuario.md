@@ -6,6 +6,8 @@
    pertenece a esa empresa; el menú muestra solo lo que su rol permite.
    Las secciones del menú lateral (Gerencia, Compras, Almacén…) se despliegan con un clic y se pliegan
    con otro; la sección de la pantalla abierta se despliega sola y la opción actual queda resaltada.
+   La barra superior muestra dónde está (sección › pantalla), la empresa activa con su país, su usuario y
+   el botón **Salir**.
 3. La sesión se renueva sola mientras la pestaña esté abierta; al cerrarla debe ingresar de nuevo.
 
 ## Dashboard ejecutivo

@@ -68,3 +68,48 @@ export function Chevron({ className = "" }: { className?: string }) {
     </svg>
   );
 }
+
+/** Marca de Datasys Latam Group: nodos conectados sobre un cuadro cobalto→cian. */
+export function BrandMark() {
+  return (
+    <svg className="brand-mark" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="brand-grad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#0052CC" />
+          <stop offset="1" stopColor="#00B4D8" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="8" fill="url(#brand-grad)" />
+      <path d="M10 9.5v13h5.5a6.5 6.5 0 0 0 0-13z" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M15.5 16h7" stroke="#FFFFFF" strokeOpacity=".7" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="23" cy="16" r="2.2" fill="#A3E635" />
+      <circle cx="10" cy="9.5" r="1.8" fill="#FFFFFF" />
+      <circle cx="10" cy="22.5" r="1.8" fill="#FFFFFF" />
+    </svg>
+  );
+}
+
+function TopIcon({ children }: { children: ReactNode }) {
+  return (
+    <svg className="top-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" strokeWidth="1.7"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      {children}
+    </svg>
+  );
+}
+
+export const MenuIcon = () => <TopIcon><path className="ico-main" d="M4 7h16M4 12h16M4 17h10" /></TopIcon>;
+
+export const BuildingIcon = () => (
+  <TopIcon>
+    <path className="ico-main" d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 10h4a1 1 0 0 1 1 1v10M3 21h18" />
+    <path className="ico-acc" d="M8 8h3M8 12h3M8 16h3" />
+  </TopIcon>
+);
+
+export const LogoutIcon = () => (
+  <TopIcon>
+    <path className="ico-main" d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
+    <path className="ico-acc" d="M10 16l-4-4 4-4M6 12h9" />
+  </TopIcon>
+);
