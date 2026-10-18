@@ -77,6 +77,9 @@ function Start-Hidden([string]$file, [string[]]$arguments, [string]$workDir, [st
     $p = @{ FilePath = $file; ArgumentList = $arguments; WindowStyle = 'Hidden'; PassThru = $true }
     if ($workDir) { $p.WorkingDirectory = $workDir }
     if ($stdout) {
+        foreach ($part in @($file, $stdout, $stderr) + $arguments) {
+            if ($part -match '[%"!^]') { throw "Ruta o argumento con caracteres no admitidos por cmd.exe: $part" }
+        }
         $p.FilePath = 'cmd.exe'
         $p.ArgumentList = "/d /s /c `"`"$file`" $($arguments -join ' ') > `"$stdout`" 2> `"$stderr`"`""
     }
@@ -149,6 +152,29 @@ if (-not (Test-Path $python)) {
 }
 if (-not (Test-Path (Join-Path $RepoRoot '.env'))) {
     Write-Host "No existe $RepoRoot\.env. Copie .env.example a .env y ajuste DATABASE_URL al puerto $PgPort." -ForegroundColor Yellow
+    exit 1
+}
+
+# Salvaguarda: dev-up migra y arranca la API con lo que diga .env. Solo se permite un entorno de
+# desarrollo o pruebas contra una base de esta máquina, para no migrar por error staging o producción.
+# Se revisan solo ENVIRONMENT y el host de DATABASE_URL; las credenciales no se muestran.
+$envVars = @{}
+foreach ($line in Get-Content (Join-Path $RepoRoot '.env')) {
+    if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$') { $envVars[$Matches[1]] = $Matches[2].Trim().Trim('"', "'") }
+}
+# Como en la API (pydantic-settings), una variable de entorno del sistema prevalece sobre .env.
+foreach ($name in 'ENVIRONMENT', 'DATABASE_URL') {
+    $value = (Get-Item -Path "Env:$name" -ErrorAction SilentlyContinue).Value  # sin tipos .NET: modo de lenguaje restringido
+    if ($value) { $envVars[$name] = $value }
+}
+$environment = if ($envVars['ENVIRONMENT']) { $envVars['ENVIRONMENT'] } else { 'development' }  # mismo valor por defecto que la API
+if ($environment -notin @('development', 'test')) {
+    Write-Host "ENVIRONMENT=$environment (en .env o en el sistema): dev-up solo trabaja con development o test." -ForegroundColor Red
+    exit 1
+}
+$dbHost = if ($envVars['DATABASE_URL'] -match '@(\[[^\]]+\]|[^:/?]+)') { $Matches[1] } else { '' }
+if ($dbHost -notin @('127.0.0.1', 'localhost', '[::1]')) {
+    Write-Host "DATABASE_URL (de .env o del sistema) no apunta a esta máquina (host '$dbHost'); dev-up no migra ni arranca contra otra base." -ForegroundColor Red
     exit 1
 }
 
