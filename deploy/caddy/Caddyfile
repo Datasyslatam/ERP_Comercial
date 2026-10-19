@@ -1,7 +1,9 @@
 {
 	admin off
 	servers {
-		trusted_proxies static private_ranges
+		# Servidor propio: solo redes privadas. En Railway todo el tráfico entra por su borde, cuya IP no es
+		# privada: TRUSTED_PROXIES="0.0.0.0/0 ::/0" conserva la IP real del cliente en X-Forwarded-For.
+		trusted_proxies static {$TRUSTED_PROXIES:private_ranges}
 	}
 }
 
