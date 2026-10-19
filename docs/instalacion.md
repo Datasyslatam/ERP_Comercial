@@ -95,37 +95,38 @@ Mismo procedimiento que B sobre una VM (AWS EC2, Azure VM, GCP, OCI, OpenStack, 
 ## D. Railway (paso a paso)
 
 1. Cree un proyecto en Railway y agregue **PostgreSQL** (plugin). Railway expone `DATABASE_URL`.
-2. Conecte el repositorio y cree **tres servicios** desde el mismo repo (no hace falta un servicio Caddy aparte:
-   la imagen de `web` ya es Caddy con el frontend compilado y el proxy hacia la API):
+2. Conecte el repositorio y cree **dos servicios** desde el mismo repo (no hace falta un servicio Caddy aparte:
+   la imagen de `web` ya es Caddy con el frontend compilado y el proxy hacia la API; el worker corre dentro de
+   `api` con `RUN_WORKER=1`, porque un volumen de Railway no se comparte entre servicios y el worker guarda el
+   XML de facturación que la API sirve):
    | Servicio | Dockerfile Path | Start Command | Healthcheck |
    |---|---|---|---|
    | `api` | `deploy/docker/api.Dockerfile` | `entrypoint.sh api` | `/health/ready` (timeout 120 s) |
-   | `worker` | `deploy/docker/api.Dockerfile` | `entrypoint.sh worker` | — (restart: always) |
    | `web` | `deploy/docker/web.Dockerfile` | — | `/` |
 
    Los mismos valores están en `deploy/railway/*.railway.json` como referencia; Railway ya no admite
    enlazar nuevos archivos *config-as-code*, así que se configuran en *Settings* de cada servicio.
-   En los tres, **Root Directory vacío o `/`** (raíz del repositorio): los Dockerfile copian `backend/`,
+   En ambos, **Root Directory vacío o `/`** (raíz del repositorio): los Dockerfile copian `backend/`,
    `frontend/` y `deploy/` desde la raíz. Con Root Directory `/frontend` el build falla con
    `"/frontend/package.json": not found`. Con *Dockerfile Path* definido Railway construye con Docker,
    no con Railpack, y la fuente debe ser el repositorio, no una imagen.
-3. Variables de `api` y `worker`:
+3. Variables de `api`:
    - `DATABASE_URL=${{Postgres.DATABASE_URL}}` (se normaliza al driver psycopg automáticamente)
    - `ENVIRONMENT=production`, `JWT_SECRET=<aleatorio 48+>`, `CORS_ORIGINS=https://<dominio-web>`
    - `HOST=::` (red privada de Railway), `PORT=8000`, `WEB_CONCURRENCY=2`, `TRUSTED_PROXY_COUNT=2`
      (borde de Railway + Caddy)
    - `RAILWAY_RUN_UID=0`: el volumen de Railway se monta como root y la imagen corre con un usuario sin
      privilegios; sin esta variable la API no puede escribir adjuntos en `/data/storage`.
-   - en `worker`: `RUN_MIGRATIONS=0`
+   - `RUN_WORKER=1`: el worker (bandeja de salida de facturación y alertas) corre en el mismo contenedor y se
+     relanza solo si falla. Mantenga **una** réplica de `api` mientras tenga volumen (Railway lo exige).
 4. Variables de `web`: `SITE_ADDRESS=:8080`, `PORT=8080`, `API_UPSTREAM=api.railway.internal:8000`,
    `TRUSTED_PROXIES=0.0.0.0/0 ::/0` (el borde de Railway no usa IP privadas; sin esto todos los usuarios
    compartirían el límite de intentos de ingreso). `VITE_API_URL` no se usa: el navegador llama a `/api` en
    el mismo dominio y Caddy lo reenvía.
 5. Genere un dominio público solo para `web` (Railway termina TLS). La API no necesita dominio público.
-6. Volumen: adjunte un volumen a `api` y `worker` montado en `/data/storage` (adjuntos y XML).
-   *Nota*: un volumen de Railway se monta en un solo servicio; si se usan ambos, mueva el almacenamiento a
-   un bucket S3 compatible (pendiente listado en `pendientes-produccion.md`) o ejecute el worker dentro del
-   servicio `api`.
+6. Volumen: adjunte un volumen a `api` montado en `/data/storage` (adjuntos y XML). Para escalar la API a
+   varias réplicas habría que mover el almacenamiento a un bucket S3 compatible (pendiente listado en
+   `pendientes-produccion.md`) y volver a separar el worker (`entrypoint.sh worker`, `RUN_MIGRATIONS=0`).
 7. Inicialización: en `api` → *Shell* ejecute los comandos `python -m app.cli init`, `create-company` y
    `create-admin` del paso B.5.
 8. Respaldos: habilite los backups del plugin PostgreSQL de Railway y, adicionalmente, programe un
