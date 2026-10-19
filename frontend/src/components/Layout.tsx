@@ -64,13 +64,19 @@ export function sectionOf(pathname: string): string | undefined {
 }
 
 /** Opción del menú que corresponde a la ruta actual (la más específica), para la ruta de navegación. */
-export function pageOf(pathname: string): { section: string; label: string } | undefined {
-  let best: { section: string; label: string; len: number } | undefined;
+/** Opción del menú que corresponde a la ruta (la más específica), con su sección. */
+function navItemOf(pathname: string): (NavItem & { section: string }) | undefined {
+  let best: (NavItem & { section: string }) | undefined;
   for (const s of NAV) for (const i of s.items) {
     const hit = i.to === "/" ? pathname === "/" : pathname === i.to || pathname.startsWith(`${i.to}/`);
-    if (hit && (!best || i.to.length > best.len)) best = { section: s.section, label: i.label, len: i.to.length };
+    if (hit && (!best || i.to.length > best.to.length)) best = { ...i, section: s.section };
   }
-  return best && { section: best.section, label: best.label };
+  return best;
+}
+
+export function pageOf(pathname: string): { section: string; label: string } | undefined {
+  const item = navItemOf(pathname);
+  return item && { section: item.section, label: item.label };
 }
 
 const COUNTRY: Record<string, string> = { CO: "Colombia", VE: "Venezuela" };
@@ -85,6 +91,12 @@ export function Layout() {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const page = pageOf(pathname);
+  // Una dirección escrita a mano puede apuntar a un módulo desactivado o sin permiso: se avisa en lugar de
+  // dejar la pantalla esperando datos que la API rechaza.
+  const target = navItemOf(pathname);
+  const blocked = !target ? null
+    : target.module && !moduleOn(target.module) ? `«${target.label}» pertenece a un módulo que no está activo para esta empresa.`
+    : !can(target.perm) ? "Su rol no tiene acceso a esta pantalla." : null;
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set([sectionOf(pathname) ?? NAV[0].section]));
   useEffect(() => {
     const current = sectionOf(pathname);
@@ -167,7 +179,8 @@ export function Layout() {
         })}
       </nav>
       <main className="content">
-        {!company ? <p className="alert alert-warning">Su usuario no tiene empresas asignadas.</p> : <Outlet />}
+        {!company ? <p className="alert alert-warning">Su usuario no tiene empresas asignadas.</p>
+          : blocked ? <p className="alert alert-warning" role="alert">{blocked}</p> : <Outlet />}
       </main>
     </div>
   );

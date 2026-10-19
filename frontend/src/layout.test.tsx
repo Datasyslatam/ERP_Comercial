@@ -2,10 +2,11 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
+const access = vi.hoisted(() => ({ can: (_perm: string): boolean => true, moduleOn: (_module: string): boolean => true }));
 vi.mock("./lib/session", () => ({
   useSession: () => ({
     me: { full_name: "Ana María Pérez", email: "ana@datasys.test", companies: [{ id: 1, code: "CO1", name: "Empresa", country: "CO" }] },
-    company: { id: 1 }, selectCompany: vi.fn(), logout: vi.fn(), can: () => true, moduleOn: () => true,
+    company: { id: 1 }, selectCompany: vi.fn(), logout: vi.fn(), can: access.can, moduleOn: access.moduleOn,
   }),
 }));
 
@@ -66,5 +67,18 @@ describe("Barra superior", () => {
     expect(pageOf("/contabilidad/cartera")).toEqual({ section: "Contabilidad", label: "Cartera y pagos" });
     expect(pageOf("/facturacion")?.label).toBe("Facturación electrónica");
     expect(pageOf("/otra")).toBeUndefined();
+  });
+
+  it("avisa en lugar de cargar una pantalla de un módulo desactivado o sin permiso", () => {
+    access.moduleOn = (m) => m !== "operations";
+    const { unmount } = renderAt("/operaciones/ordenes");
+    expect(screen.getByRole("alert")).toHaveTextContent("«Órdenes de trabajo» pertenece a un módulo que no está activo");
+    unmount();
+
+    access.moduleOn = () => true;
+    access.can = (p) => p !== "admin.audit.read";
+    renderAt("/admin/auditoria");
+    expect(screen.getByRole("alert")).toHaveTextContent("Su rol no tiene acceso a esta pantalla.");
+    access.can = () => true;
   });
 });
