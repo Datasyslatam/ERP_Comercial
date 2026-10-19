@@ -149,3 +149,13 @@ def test_audit_log_is_append_only(env):
     with SessionLocal() as db, pytest.raises(DBAPIError):
         db.execute(text("delete from audit_log"))
         db.commit()
+
+
+def test_cors_origins_from_env_comma_separated(monkeypatch):
+    """Railway/.env entregan CORS_ORIGINS como texto plano, no JSON: una URL o varias separadas por coma."""
+    from app.core.config import Settings
+
+    monkeypatch.setenv("CORS_ORIGINS", "https://erp.example.com")
+    assert Settings(_env_file=None).cors_origins == ["https://erp.example.com"]
+    monkeypatch.setenv("CORS_ORIGINS", "https://a.example.com, https://b.example.com")
+    assert Settings(_env_file=None).cors_origins == ["https://a.example.com", "https://b.example.com"]

@@ -1,9 +1,9 @@
 """Configuración central. Todo valor sensible llega por variables de entorno (ver .env.example)."""
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -35,7 +35,8 @@ class Settings(BaseSettings):
     argon2_parallelism: int = 4
 
     # Seguridad HTTP
-    cors_origins: list[str] = ["http://localhost:5173"]
+    # NoDecode: la variable llega como lista separada por comas, no como JSON (lo separa _split_origins).
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
     rate_limit_per_minute: int = 300
     login_rate_limit_per_minute: int = 10
     trusted_proxy_count: int = 1
