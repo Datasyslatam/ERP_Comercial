@@ -22,6 +22,15 @@
   la tendencia de 6 meses y el botón **Ver transacciones de origen**.
 - **Exportar** descarga el tablero en CSV (queda registrado en auditoría).
 
+## Trazabilidad de documentos
+- *Gerencia → Trazabilidad de documentos*: busque cualquier documento por su número (OC, recepción, factura de
+  proveedor, cotización, pedido, despacho, factura electrónica, pago o comprobante) y vea su **cadena
+  completa**: de dónde viene, qué generó, cómo se pagó y qué comprobantes contables produjo.
+- La misma cadena aparece al final de las órdenes de compra, recepciones, cotizaciones, pedidos, despachos,
+  facturas, pagos y comprobantes. Cada tarjeta lleva al documento; las de módulos que su rol no puede consultar
+  aparecen como *Sin acceso*.
+- En el **kardex**, un clic en un movimiento de recepción, despacho, devolución o inspección abre su cadena.
+
 ## Compras
 1. **Solicitud**: Compras → Solicitudes → *Nueva*. Agregue artículos y cantidades → *Enviar*.
 2. **Aprobación**: un usuario distinto al solicitante la aprueba o rechaza (con motivo). Si la empresa
@@ -36,8 +45,22 @@
    aceptadas, digite el precio facturado (se valida contra la OC con tolerancia) → *Contabilizar*.
    El sistema calcula IVA y retenciones y crea la cuenta por pagar. Un mismo número de factura del
    proveedor no puede registrarse dos veces.
+7. **Rechazo o anulación de la OC**: el aprobador puede *Rechazar* con motivo; una orden sin recepciones se
+   *Anula* con motivo.
+- **Recepciones**: listado por periodo y proveedor con lote, vencimiento, cantidades aceptadas, rechazadas y
+  facturadas y estado de inspección.
+- **Historial de precios**: por artículo, precios pactados por proveedor con mínimo, máximo y variación frente
+  a la compra anterior.
+- **Evaluación de proveedores**: ranking del periodo por entrega a tiempo y aceptación de calidad (≥ 90
+  confiable, 75–89 seguimiento, < 75 plan de mejora).
+- **Presupuesto de compras**: comprometido en órdenes aprobadas frente al presupuesto del mes y centro de costo.
 
 ## Calidad
+- **Planes de inspección**: por artículo o categoría y etapa (recepción, proceso, final, despacho), con
+  características numéricas (mínimo, objetivo, máximo, unidad), de cumple/no cumple u observación, y marca de
+  característica crítica.
+- **Lotes e historial**: estado de cada lote (liberado, cuarentena, bloqueado) y su cambio con motivo; el
+  historial de inspecciones y no conformidades por lote, artículo o proveedor.
 - **Inspecciones pendientes**: registre los resultados de cada característica, la cantidad aceptada y la
   rechazada. Lo aceptado se libera a bodega; lo rechazado se devuelve al proveedor y se crea una **no
   conformidad**. Una característica crítica fuera de tolerancia impide aceptar sin concesión.
@@ -45,17 +68,30 @@
   preventivas o de contención) → Verificación → Cerrada. No se cierra con acciones abiertas.
 
 ## Almacén
-- **Existencias y kardex**: saldos por ubicación y lote, reservado y disponible, valor; seleccione un
-  artículo para ver su kardex con saldo acumulado. El indicador verde confirma que los saldos coinciden
-  con el historial de movimientos.
+- **Existencias**: saldos por ubicación y lote, reservado y disponible, valor. El indicador verde confirma
+  que los saldos coinciden con el historial de movimientos.
+- **Kardex**: por artículo y rango de fechas, con saldo inicial, entradas, salidas, costo y saldo valorizado.
+- **Reabastecimiento**: artículos con disponible bajo el mínimo y cantidad sugerida hasta el máximo. Ajuste
+  las cantidades, elija la sede y *Generar solicitud de compra*: se crea en borrador con el último precio de
+  compra como estimado y sigue el flujo normal de aprobación.
+- **Vencimientos**: lotes con existencia que vencen dentro del horizonte elegido (despache primero lo que
+  vence antes).
 - **Movimientos**: transferencias, consumos internos (con centro de costo), ajustes y bajas. Ajustes y
   bajas requieren **aprobación** por un usuario distinto a quien los crea.
 - **Conteos físicos**: *Abrir conteo* por bodega → digite cantidades (conteo ciego) → un aprobador
   *Aprueba y ajusta*; las diferencias se contabilizan.
 
 ## Ventas, logística y facturación
-1. **Pedido**: Ventas → Pedidos → *Nuevo*. *Confirmar y reservar* valida el cupo de crédito y reserva
-   inventario (primero lo que vence primero; nunca lotes vencidos, bloqueados o en cuarentena).
+0. **Cotización**: Ventas → Cotizaciones → *Nueva* (cliente, vigencia, precios y descuentos). *Marcar como
+   enviada* cuando la reciba el cliente. *Convertir en pedido* crea el pedido con las mismas condiciones;
+   *Registrar como perdida* exige el motivo (precio, plazo, competencia). Vencida la vigencia no se convierte:
+   emita una nueva con precios actualizados.
+1. **Pedido**: Ventas → Pedidos → *Nuevo* (o desde la cotización). *Confirmar y reservar* valida el cupo de
+   crédito y reserva inventario (primero lo que vence primero; nunca lotes vencidos, bloqueados o en
+   cuarentena). La ficha del pedido muestra por línea lo pedido, la reserva vigente, lo despachado, facturado,
+   devuelto y pendiente, y el cupo de crédito disponible del cliente mientras está en borrador.
+   - **Cerrar saldo**: si el cliente ya no requiere lo pendiente, el pedido se cierra con motivo y se liberan
+     sus reservas (no debe haber despachos en preparación). **Anular** solo aplica a pedidos sin despachos.
 2. **Despacho**: *Generar despacho* → *Planificar* (ruta, transportista, fecha de envío y dirección) →
    *Iniciar picking* → *Confirmar picking* (no puede superar lo solicitado/reservado) → *Empacar* →
    *Enviar* (placa, guía y flete) → *Registrar entrega* (quién recibe; entregas parciales generan
@@ -74,7 +110,10 @@
 5. **Notas crédito/débito**: abra la factura emitida → *Nota crédito / débito* → elija el tipo, el
    concepto de corrección, el motivo y la cantidad/precio por línea. La nota queda en borrador y se emite
    desde el listado (requiere numeración autorizada para su tipo). Una factura emitida nunca se anula:
-   se corrige con nota crédito.
+   se corrige con nota crédito. Un borrador sí puede *Anularse* con motivo.
+6. **Conciliación fiscal**: en Facturación → *Conciliación fiscal* verifica, para el periodo, que cada
+   documento emitido tenga asiento contable vigente, partida en cartera por el mismo valor y aceptación
+   electrónica.
 
 > **Importante**: mientras no se contrate el proveedor tecnológico, los documentos se validan con el
 > adaptador **SANDBOX** y muestran "Documento de PRUEBAS: sin validez fiscal".
@@ -82,14 +121,23 @@
 ## Contabilidad
 - **Comprobantes**: los documentos comerciales se contabilizan solos. Los comprobantes manuales se crean
   en borrador (deben cuadrar) y los contabiliza otro usuario. Los contabilizados no se editan: se reversan.
-- **Cartera y pagos**: antigüedad de saldos por cobrar y pagar; *Recaudar/Pagar* aplica el pago a la
+- **Cartera por edades**: antigüedad de saldos por cobrar y pagar; *Recaudar/Pagar* aplica el pago a la
   partida. En recaudos puede agregar las **retenciones que practica el cliente** (*+ Retención*, elegir la
   retención, digitar la base y *Calcular*): a la partida se aplica el valor recibido en banco más lo
   retenido. En Venezuela, cobros en divisas de contribuyentes especiales calculan el IGTF.
-- **Estados financieros**: balance de prueba (con exportación), estado de resultados, balance general y
-  flujo de efectivo, con trazabilidad al documento origen en el libro mayor.
+- **Pagos y recaudos**: historial con tercero, medio, retenciones y valor; abra uno para ver su trazabilidad
+  o *Anularlo* con motivo (reabre las partidas aplicadas y reversa el comprobante).
+- **Conciliación bancaria**: *Cargar extracto* pegando los movimientos (`AAAA-MM-DD;descripción;referencia;valor`,
+  débitos en negativo) con saldos inicial y final del banco → *Conciliar automáticamente* empareja por valor
+  y fecha; lo restante se concilia a mano con la partida en libros del mismo valor o se marca *Ignorar*. La
+  diferencia la explican las partidas en libros aún no reflejadas por el banco.
+- **Estados financieros**: balance de prueba (con exportación), estado de resultados, balance general, flujo
+  de efectivo, **libro mayor** por cuenta y **libro diario**.
+- **Comprobantes**: un clic abre sus líneas (cuenta, tercero, débito, crédito) y la cadena del documento que
+  lo originó.
 - **Periodos**: cerrar bloquea contabilizaciones en el mes; reabrir exige justificación y un usuario
-  distinto a quien cerró.
+  distinto a quien cerró. *Cierre del ejercicio* genera el asiento que traslada ingresos, costos y gastos del
+  año anterior a resultados acumulados.
 
 ## Operaciones (si está activo para su empresa)
 **Listas de materiales**: Operaciones → Listas de materiales → producto, cantidad base y componentes con

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ResourcePage } from "../components/ResourcePage";
+import { TracePanel } from "../components/TracePanel";
 import { ActionButton, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
 import { Json, patch, post, qs } from "../lib/api";
 import { fmtDate, fmtNumber } from "../lib/format";
@@ -78,6 +79,8 @@ export function DispatchDetailPage() {
         { key: "reason", title: "Motivo" },
         { key: "lines", title: "Artículos", render: (r) => r.lines.map((l: Json) =>
           `${itemName(l.item_id)} × ${fmtNumber(l.quantity)} (${l.condition === "damaged" ? "dañado" : "revendible"})`).join("; ") }]} />
+      <h3>Trazabilidad</h3>
+      <TracePanel type="dispatch" id={d.id} />
 
       {step === "pick" && <Modal title="Verificación de picking" onClose={() => setStep(null)}>
         <Form fields={d.lines.map((l: Json) => ({ name: `p_${l.id}`, label: `${itemName(l.item_id)} (solicitado ${fmtNumber(l.qty_requested)})`, type: "number" as const, required: true }))}

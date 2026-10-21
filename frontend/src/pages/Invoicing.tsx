@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { TracePanel } from "../components/TracePanel";
 import { ActionButton, Alert, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
 import { download, Json, post, qs } from "../lib/api";
-import { fmtDate, fmtMoney, fmtNumber } from "../lib/format";
-import { useFetch, useItemNames } from "../lib/hooks";
+import { fmtDate, fmtMoney, fmtNumber, label } from "../lib/format";
+import { useFetch, useItemNames, useLookup } from "../lib/hooks";
 import { useSession } from "../lib/session";
 
 export const DOC_TYPES: Record<string, string> = { invoice: "Factura", credit_note: "Nota crédito", debit_note: "Nota débito" };
@@ -16,7 +17,10 @@ export function InvoicingPage() {
   const [current, setCurrent] = useState<number | null>(focus);
   const detail = useFetch<Json>(current ? `/einvoicing/invoices/${current}` : null);
   const [noting, setNoting] = useState(false);
+  const [voiding, setVoiding] = useState(false);
+  const [checking, setChecking] = useState(false);
   const itemName = useItemNames();
+  const customerName = useLookup("/parties?limit=500", (x) => x.legal_name);
   return (
     <Page title="Facturación electrónica" actions={<>
       <select aria-label="Tipo de documento" value={docType} onChange={(e) => setDocType(e.target.value)}>
@@ -25,13 +29,15 @@ export function InvoicingPage() {
       </select>
       <select aria-label="Estado electrónico" value={edoc} onChange={(e) => setEdoc(e.target.value)}>
         <option value="">Todos</option>
-        {["draft", "pending", "sent", "accepted", "rejected", "error"].map((s) => <option key={s} value={s}>{s}</option>)}
+        {["draft", "pending", "sent", "accepted", "rejected", "error"].map((s) => <option key={s} value={s}>{label(s)}</option>)}
       </select>
+      <button className="secondary" onClick={() => setChecking(true)}>Conciliación fiscal</button>
     </>}>
       <Alert kind="warning">Proveedor tecnológico no definido: los documentos se procesan con el adaptador SANDBOX y NO tienen validez fiscal.</Alert>
       <DataTable rows={data?.items} onRowClick={(r) => setCurrent(r.id)} columns={[
         { key: "full_number", title: "Número", render: (r) => r.full_number ?? "(borrador)" },
         { key: "doc_type", title: "Tipo", render: (r) => DOC_TYPES[r.doc_type] ?? r.doc_type }, { key: "issue_date", title: "Fecha" },
+        { key: "customer_id", title: "Cliente", render: (r) => customerName(r.customer_id) },
         { key: "status", title: "Estado", render: (r) => <Badge value={r.status} /> },
         { key: "edoc_status", title: "Documento electrónico", render: (r) => <Badge value={r.edoc_status} /> },
         { key: "total", title: "Total", align: "right", render: (r) => fmtMoney(r.total, r.currency) },
@@ -64,9 +70,16 @@ export function InvoicingPage() {
                 Descargar documento</button>}
             {detail.data.doc_type === "invoice" && detail.data.status === "issued" && can("einvoicing.invoice.create") &&
               <button onClick={() => setNoting(true)}>Nota crédito / débito</button>}
+            {detail.data.status === "draft" && can("einvoicing.invoice.void") && <button className="danger" onClick={() => setVoiding(true)}>Anular borrador</button>}
           </div>
+          {detail.data.status === "issued" && <p className="muted">Un documento emitido no se anula: se corrige con nota crédito o débito.</p>}
+          {voiding && <Form submitLabel="Anular borrador" fields={[{ name: "reason", label: "Motivo", type: "textarea", required: true }]}
+            onSubmit={async (d) => { await post(`/einvoicing/invoices/${current}/cancel`, d); setVoiding(false); detail.reload(); reload(); }} />}
+          <h3>Trazabilidad</h3>
+          {detail.data.id && <TracePanel type="sales_invoice" id={detail.data.id} />}
         </Modal>
       )}
+      {checking && <FiscalCheckModal onClose={() => setChecking(false)} />}
       {noting && detail.data && <NoteModal invoice={detail.data} itemName={itemName} onClose={() => setNoting(false)}
         onCreated={(note) => { setNoting(false); reload(); setCurrent(note.id); }} />}
     </Page>
@@ -106,6 +119,28 @@ export function NoteModal({ invoice, itemName, onClose, onCreated }: {
             doc_type: docType, correction_code: v.correction_code, reason: v.reason, lines }));
         }} />
       <p className="muted">La nota crédito no puede superar el saldo pendiente de la factura y requiere numeración autorizada vigente para su tipo.</p>
+    </Modal>
+  );
+}
+
+/** Verifica que cada documento emitido tenga asiento contable, partida en cartera y aceptación electrónica. */
+function FiscalCheckModal({ onClose }: { onClose: () => void }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [start, setStart] = useState(today.slice(0, 8) + "01");
+  const [end, setEnd] = useState(today);
+  const { data } = useFetch<Json>(`/einvoicing/reconciliation${qs({ start, end })}`);
+  return (
+    <Modal title="Conciliación fiscal y contable" onClose={onClose}>
+      <div className="filters">
+        <label>Desde<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
+        <label>Hasta<input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
+      </div>
+      {data && (data.ok
+        ? <Alert kind="ok">{data.documents} documento(s) revisados: todos tienen asiento contable, partida en cartera y aceptación electrónica.</Alert>
+        : <>
+          <Alert kind="warning">{data.issues.length} inconsistencia(s) en {data.documents} documento(s).</Alert>
+          <DataTable rows={data.issues} columns={[{ key: "invoice", title: "Documento" }, { key: "problem", title: "Problema" }]} />
+        </>)}
     </Modal>
   );
 }

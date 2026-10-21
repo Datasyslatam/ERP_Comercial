@@ -6454,6 +6454,59 @@
     }
    }
   },
+  "/api/v1/purchasing/requisitions/from-replenishment": {
+   "post": {
+    "tags": [
+     "Compras"
+    ],
+    "summary": "Requisition From Replenishment",
+    "description": "Convierte las sugerencias de reabastecimiento (artículos bajo mínimo) en una solicitud de compra en borrador.",
+    "operationId": "requisition_from_replenishment_api_v1_purchasing_requisitions_from_replenishment_post",
+    "parameters": [
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReplenishmentReqIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/purchasing/requisitions/{req_id}": {
    "get": {
     "tags": [
@@ -6780,7 +6833,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/QuoteIn"
+        "$ref": "#/components/schemas/app__modules__purchasing__router__QuoteIn"
        }
       }
      }
@@ -7717,6 +7770,69 @@
       "schema": {
        "type": "integer",
        "title": "Item Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/purchasing/suppliers/evaluation": {
+   "get": {
+    "tags": [
+     "Compras"
+    ],
+    "summary": "Evaluation Ranking",
+    "description": "Evaluación de todos los proveedores con recepciones en el periodo, de mejor a peor puntaje.",
+    "operationId": "evaluation_ranking_api_v1_purchasing_suppliers_evaluation_get",
+    "parameters": [
+     {
+      "name": "start",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "date",
+       "title": "Start"
+      }
+     },
+     {
+      "name": "end",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "date",
+       "title": "End"
       }
      },
      {
@@ -10221,6 +10337,438 @@
     ],
     "responses": {
      "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/orders/{so_id}/close": {
+   "post": {
+    "tags": [
+     "Ventas"
+    ],
+    "summary": "Close",
+    "description": "Cierra el pedido con saldo pendiente (el cliente ya no lo requiere) y libera sus reservas.",
+    "operationId": "close_api_v1_sales_orders__so_id__close_post",
+    "parameters": [
+     {
+      "name": "so_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "So Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReasonIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/quotes": {
+   "get": {
+    "tags": [
+     "Ventas"
+    ],
+    "summary": "List Quotes",
+    "operationId": "list_quotes_api_v1_sales_quotes_get",
+    "parameters": [
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "name": "customer_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Customer Id"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 500,
+       "default": 50,
+       "title": "Limit"
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "default": 0,
+       "title": "Offset"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Ventas"
+    ],
+    "summary": "Create Quote",
+    "operationId": "create_quote_api_v1_sales_quotes_post",
+    "parameters": [
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__modules__sales__router__QuoteIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/quotes/{quote_id}": {
+   "get": {
+    "tags": [
+     "Ventas"
+    ],
+    "summary": "Get Quote",
+    "operationId": "get_quote_api_v1_sales_quotes__quote_id__get",
+    "parameters": [
+     {
+      "name": "quote_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Quote Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/quotes/{quote_id}/send": {
+   "post": {
+    "tags": [
+     "Ventas"
+    ],
+    "summary": "Send Quote",
+    "operationId": "send_quote_api_v1_sales_quotes__quote_id__send_post",
+    "parameters": [
+     {
+      "name": "quote_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Quote Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/quotes/{quote_id}/reject": {
+   "post": {
+    "tags": [
+     "Ventas"
+    ],
+    "summary": "Reject Quote",
+    "operationId": "reject_quote_api_v1_sales_quotes__quote_id__reject_post",
+    "parameters": [
+     {
+      "name": "quote_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Quote Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReasonIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/quotes/{quote_id}/convert": {
+   "post": {
+    "tags": [
+     "Ventas"
+    ],
+    "summary": "Convert Quote",
+    "description": "Convierte la cotización vigente en un pedido de venta en borrador con las mismas condiciones.",
+    "operationId": "convert_quote_api_v1_sales_quotes__quote_id__convert_post",
+    "parameters": [
+     {
+      "name": "quote_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Quote Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ConvertIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
       "description": "Successful Response",
       "content": {
        "application/json": {
@@ -17195,6 +17743,121 @@
     }
    }
   },
+  "/api/v1/trace/search": {
+   "get": {
+    "tags": [
+     "Trazabilidad"
+    ],
+    "summary": "Search",
+    "description": "Documentos cuyo número coincide, solo de los módulos que el usuario puede consultar.",
+    "operationId": "search_api_v1_trace_search_get",
+    "parameters": [
+     {
+      "name": "q",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "minLength": 2,
+       "maxLength": 60,
+       "title": "Q"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/trace/{doc_type}/{doc_id}": {
+   "get": {
+    "tags": [
+     "Trazabilidad"
+    ],
+    "summary": "Trace",
+    "description": "Cadena documental completa (hacia atrás y hacia adelante) con sus comprobantes contables.",
+    "operationId": "trace_api_v1_trace__doc_type___doc_id__get",
+    "parameters": [
+     {
+      "name": "doc_type",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Doc Type"
+      }
+     },
+     {
+      "name": "doc_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Doc Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/health/live": {
    "get": {
     "tags": [
@@ -18923,6 +19586,55 @@
      "factor"
     ],
     "title": "ConversionIn"
+   },
+   "ConvertIn": {
+    "properties": {
+     "warehouse_id": {
+      "type": "integer",
+      "title": "Warehouse Id"
+     },
+     "order_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Order Date"
+     },
+     "promised_date": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Promised Date"
+     },
+     "delivery_address": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Delivery Address"
+     }
+    },
+    "type": "object",
+    "required": [
+     "warehouse_id"
+    ],
+    "title": "ConvertIn"
    },
    "CostCenterCreate": {
     "properties": {
@@ -23895,82 +24607,6 @@
     ],
     "title": "PostingAccountIn"
    },
-   "QuoteIn": {
-    "properties": {
-     "supplier_id": {
-      "type": "integer",
-      "title": "Supplier Id"
-     },
-     "quote_reference": {
-      "anyOf": [
-       {
-        "type": "string",
-        "maxLength": 60
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Quote Reference"
-     },
-     "quote_date": {
-      "type": "string",
-      "format": "date",
-      "title": "Quote Date"
-     },
-     "valid_until": {
-      "anyOf": [
-       {
-        "type": "string",
-        "format": "date"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Valid Until"
-     },
-     "currency": {
-      "type": "string",
-      "maxLength": 3,
-      "minLength": 3,
-      "title": "Currency"
-     },
-     "delivery_days": {
-      "type": "integer",
-      "minimum": 0.0,
-      "title": "Delivery Days",
-      "default": 0
-     },
-     "payment_term_id": {
-      "anyOf": [
-       {
-        "type": "integer"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Payment Term Id"
-     },
-     "lines": {
-      "items": {
-       "$ref": "#/components/schemas/QuoteLine"
-      },
-      "type": "array",
-      "minItems": 1,
-      "title": "Lines"
-     }
-    },
-    "type": "object",
-    "required": [
-     "supplier_id",
-     "quote_date",
-     "currency",
-     "lines"
-    ],
-    "title": "QuoteIn"
-   },
    "QuoteLine": {
     "properties": {
      "requisition_line_id": {
@@ -24222,6 +24858,53 @@
      "reason"
     ],
     "title": "ReopenIn"
+   },
+   "ReplenishmentReqIn": {
+    "properties": {
+     "site_id": {
+      "type": "integer",
+      "title": "Site Id"
+     },
+     "needed_by": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Needed By"
+     },
+     "quantities": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "anyOf": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "string"
+          }
+         ]
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quantities",
+      "description": "item_id → cantidad; omita para usar la sugerida"
+     }
+    },
+    "type": "object",
+    "required": [
+     "site_id"
+    ],
+    "title": "ReplenishmentReqIn"
    },
    "ReqLine": {
     "properties": {
@@ -24646,7 +25329,7 @@
        "type": "string"
       },
       "type": "array",
-      "maxItems": 114,
+      "maxItems": 116,
       "title": "Permissions"
      },
      "copy_from_role_id": {
@@ -24702,7 +25385,7 @@
          "type": "string"
         },
         "type": "array",
-        "maxItems": 114
+        "maxItems": 116
        },
        {
         "type": "null"
@@ -27496,6 +28179,82 @@
     ],
     "title": "IncidentIn"
    },
+   "app__modules__purchasing__router__QuoteIn": {
+    "properties": {
+     "supplier_id": {
+      "type": "integer",
+      "title": "Supplier Id"
+     },
+     "quote_reference": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 60
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quote Reference"
+     },
+     "quote_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Quote Date"
+     },
+     "valid_until": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Valid Until"
+     },
+     "currency": {
+      "type": "string",
+      "maxLength": 3,
+      "minLength": 3,
+      "title": "Currency"
+     },
+     "delivery_days": {
+      "type": "integer",
+      "minimum": 0.0,
+      "title": "Delivery Days",
+      "default": 0
+     },
+     "payment_term_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Term Id"
+     },
+     "lines": {
+      "items": {
+       "$ref": "#/components/schemas/QuoteLine"
+      },
+      "type": "array",
+      "minItems": 1,
+      "title": "Lines"
+     }
+    },
+    "type": "object",
+    "required": [
+     "supplier_id",
+     "quote_date",
+     "currency",
+     "lines"
+    ],
+    "title": "QuoteIn"
+   },
    "app__modules__quality__router__PlanIn": {
     "properties": {
      "code": {
@@ -27564,6 +28323,88 @@
      "characteristics"
     ],
     "title": "PlanIn"
+   },
+   "app__modules__sales__router__QuoteIn": {
+    "properties": {
+     "site_id": {
+      "type": "integer",
+      "title": "Site Id"
+     },
+     "customer_id": {
+      "type": "integer",
+      "title": "Customer Id"
+     },
+     "quote_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Quote Date"
+     },
+     "valid_until": {
+      "type": "string",
+      "format": "date",
+      "title": "Valid Until"
+     },
+     "currency": {
+      "type": "string",
+      "maxLength": 3,
+      "minLength": 3,
+      "pattern": "^[A-Z]{3}$",
+      "title": "Currency"
+     },
+     "payment_term_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Term Id"
+     },
+     "contact_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Name"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     },
+     "lines": {
+      "items": {
+       "$ref": "#/components/schemas/SoLine"
+      },
+      "type": "array",
+      "minItems": 1,
+      "title": "Lines"
+     }
+    },
+    "type": "object",
+    "required": [
+     "site_id",
+     "customer_id",
+     "quote_date",
+     "valid_until",
+     "currency",
+     "lines"
+    ],
+    "title": "QuoteIn"
    }
   }
  }

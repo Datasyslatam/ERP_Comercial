@@ -8,7 +8,7 @@ from app.modules.org.models import DocumentSequence
 DEFAULT_PREFIXES = {
     "purchase_requisition": "SC", "rfq": "SQ", "purchase_order": "OC", "goods_receipt": "RM",
     "supplier_invoice": "FP", "inventory_document": "MI", "physical_count": "CF", "sales_order": "PV",
-    "dispatch": "DS", "customer_return": "DV", "work_order": "OT", "inspection": "IN", "nonconformity": "NC",
+    "dispatch": "DS", "customer_return": "DV", "sales_quote": "CT", "work_order": "OT", "inspection": "IN", "nonconformity": "NC",
     "journal_entry": "CC", "payment_receipt": "RC", "payment_disbursement": "CE",
 }
 

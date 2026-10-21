@@ -36,6 +36,7 @@ _RESOURCES: dict[str, dict[str, tuple[str, ...]]] = {
         "nonconformity": ("read", "create", "approve"),
     },
     "sales": {
+        "quote": ("read", "create"),
         "order": ("read", "create", "approve", "void"),
     },
     "logistics": {
@@ -88,7 +89,7 @@ RESOURCE_LABELS = {
     "inventory.count": "Conteos físicos", "inventory.config": "Bodegas y ubicaciones",
     "quality.plan": "Planes de inspección", "quality.inspection": "Inspecciones",
     "quality.nonconformity": "No conformidades",
-    "sales.order": "Pedidos de venta",
+    "sales.quote": "Cotizaciones", "sales.order": "Pedidos de venta",
     "logistics.dispatch": "Despachos", "logistics.route": "Rutas", "logistics.return": "Devoluciones",
     "operations.work_order": "Órdenes de trabajo",
     "accounting.journal": "Comprobantes", "accounting.accounts": "Plan de cuentas",
@@ -147,7 +148,7 @@ ROLES: dict[str, tuple[str, list[str]]] = {
     "inspector_calidad": ("Inspector de calidad", _pick("quality.", "inventory.stock.read", "kpi.dashboard.read")),
     "vendedor": (
         "Vendedor",
-        _pick("sales.order.read", "sales.order.create", "masters.parties.", "masters.items.read",
+        _pick("sales.quote.", "sales.order.read", "sales.order.create", "masters.parties.", "masters.items.read",
               "inventory.stock.read", "einvoicing.invoice.read", "kpi.dashboard.read"),
     ),
     "despachador": ("Despachador", _pick("logistics.", "sales.order.read", "inventory.stock.read", "kpi.dashboard.read")),

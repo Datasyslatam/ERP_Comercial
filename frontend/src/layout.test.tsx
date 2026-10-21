@@ -19,7 +19,7 @@ describe("Menú lateral", () => {
     renderAt("/contabilidad/cartera");
     expect(screen.getByRole("button", { name: "Contabilidad" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "Compras" })).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByRole("link", { name: "Cartera y pagos" })).toHaveClass("active");
+    expect(screen.getByRole("link", { name: "Cartera por edades" })).toHaveClass("active");
   });
 
   it("despliega y pliega una sección con cada clic", () => {
@@ -64,7 +64,7 @@ describe("Barra superior", () => {
 
   it("elige la opción más específica de la ruta", () => {
     expect(pageOf("/")).toEqual({ section: "Gerencia", label: "Dashboard ejecutivo" });
-    expect(pageOf("/contabilidad/cartera")).toEqual({ section: "Contabilidad", label: "Cartera y pagos" });
+    expect(pageOf("/contabilidad/cartera")).toEqual({ section: "Contabilidad", label: "Cartera por edades" });
     expect(pageOf("/facturacion")?.label).toBe("Facturación electrónica");
     expect(pageOf("/otra")).toBeUndefined();
   });
