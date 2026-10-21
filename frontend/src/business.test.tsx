@@ -14,6 +14,10 @@ const responses: Record<string, unknown> = {
   "/sales/quotes/7": { id: 7, number: "CT-000007", status: "sent", customer_id: 3, quote_date: "2026-10-20", valid_until: "2099-01-01",
     currency: "COP", total: "500.00", lines: [] },
   "/warehouses": { items: [{ id: 4, name: "Bodega principal" }] },
+  "/documents/sales_order/5/email-defaults": { to: ["compras@cliente.co"], subject: "Pedido de venta PV-000005 · DLCO",
+    body: "Señores Cliente:" },
+  "/documents/sales_order/5/emails": [{ id: 1, created_at: "2026-10-21T10:00:00Z", to_addresses: "compras@cliente.co",
+    subject: "Pedido", status: "sent", sent_at: "2026-10-21T10:00:05Z" }],
   "/sales/quotes": { items: [{ id: 7, number: "CT-000007", status: "sent", customer_id: 3, total: "500.00", currency: "COP" }] },
 };
 vi.mock("./lib/api", () => ({
@@ -28,6 +32,7 @@ vi.mock("./lib/session", () => ({
   useSession: () => ({ company: { id: 1 }, can: () => true, moduleOn: () => true }),
 }));
 
+import { DocumentActions } from "./components/DocumentActions";
 import { TracePanel } from "./components/TracePanel";
 import { parseStatementLines } from "./pages/Accounting";
 import { QuotesPage } from "./pages/Sales";
@@ -57,6 +62,30 @@ describe("Cotizaciones", () => {
     await waitFor(() => expect(post).toHaveBeenCalled());
     expect(post.mock.calls[0][0]).toBe("/sales/quotes/7/convert");
     expect(post.mock.calls[0][1]).toMatchObject({ warehouse_id: 4 });
+  });
+});
+
+describe("Envío de documentos por correo", () => {
+  it("propone el correo del tercero y envía varios destinatarios separados por coma", async () => {
+    post.mockResolvedValue({ id: 2, status: "queued" });
+    render(<DocumentActions type="sales_order" id={5} number="PV-000005" canSend />);
+    fireEvent.click(screen.getByText("Enviar por correo"));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(await dialog.findByDisplayValue("compras@cliente.co")).toBeInTheDocument();
+    expect(dialog.getByText("Entregado", { exact: false })).toBeInTheDocument();
+    fireEvent.change(dialog.getByLabelText("Copia"), { target: { value: "ventas@datasys.co; gerencia@datasys.co" } });
+    fireEvent.click(dialog.getByText("Enviar"));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(post.mock.calls[0][0]).toBe("/documents/sales_order/5/email");
+    expect(post.mock.calls[0][1]).toMatchObject({ to: ["compras@cliente.co"], cc: ["ventas@datasys.co", "gerencia@datasys.co"],
+      subject: "Pedido de venta PV-000005 · DLCO" });
+    expect(await dialog.findByText(/Envío en cola/)).toBeInTheDocument();
+  });
+
+  it("oculta el envío cuando el estado no lo permite y lo explica", () => {
+    render(<DocumentActions type="purchase_order" id={9} number="OC-9" canSend={false} sendHint="Se envía una vez aprobada" />);
+    expect(screen.queryByText("Enviar por correo")).not.toBeInTheDocument();
+    expect(screen.getByText("Se envía una vez aprobada")).toBeInTheDocument();
   });
 });
 

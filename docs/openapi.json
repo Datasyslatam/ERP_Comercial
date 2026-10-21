@@ -17858,6 +17858,260 @@
     }
    }
   },
+  "/api/v1/documents/{doc_type}/{doc_id}/pdf": {
+   "get": {
+    "tags": [
+     "Documentos comerciales"
+    ],
+    "summary": "Pdf",
+    "description": "Representación gráfica en PDF (sales_quote, sales_order, purchase_order, sales_invoice).",
+    "operationId": "pdf_api_v1_documents__doc_type___doc_id__pdf_get",
+    "parameters": [
+     {
+      "name": "doc_type",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Doc Type"
+      }
+     },
+     {
+      "name": "doc_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Doc Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/documents/{doc_type}/{doc_id}/email-defaults": {
+   "get": {
+    "tags": [
+     "Documentos comerciales"
+    ],
+    "summary": "Email Defaults",
+    "description": "Destinatario (correo del tercero), asunto y mensaje sugeridos para el envío.",
+    "operationId": "email_defaults_api_v1_documents__doc_type___doc_id__email_defaults_get",
+    "parameters": [
+     {
+      "name": "doc_type",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Doc Type"
+      }
+     },
+     {
+      "name": "doc_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Doc Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/documents/{doc_type}/{doc_id}/email": {
+   "post": {
+    "tags": [
+     "Documentos comerciales"
+    ],
+    "summary": "Send Email",
+    "description": "Encola el envío; el worker genera el PDF vigente, lo adjunta y reintenta ante fallas del servidor de correo.",
+    "operationId": "send_email_api_v1_documents__doc_type___doc_id__email_post",
+    "parameters": [
+     {
+      "name": "doc_type",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Doc Type"
+      }
+     },
+     {
+      "name": "doc_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Doc Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/EmailIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/documents/{doc_type}/{doc_id}/emails": {
+   "get": {
+    "tags": [
+     "Documentos comerciales"
+    ],
+    "summary": "Emails",
+    "description": "Historial de envíos del documento con su estado (en cola, enviado, fallido) y error si lo hubo.",
+    "operationId": "emails_api_v1_documents__doc_type___doc_id__emails_get",
+    "parameters": [
+     {
+      "name": "doc_type",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Doc Type"
+      }
+     },
+     {
+      "name": "doc_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Doc Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/health/live": {
    "get": {
     "tags": [
@@ -20699,6 +20953,58 @@
     "additionalProperties": false,
     "type": "object",
     "title": "DocumentSequenceUpdate"
+   },
+   "EmailIn": {
+    "properties": {
+     "to": {
+      "items": {
+       "type": "string",
+       "format": "email"
+      },
+      "type": "array",
+      "maxItems": 10,
+      "minItems": 1,
+      "title": "To"
+     },
+     "cc": {
+      "items": {
+       "type": "string",
+       "format": "email"
+      },
+      "type": "array",
+      "maxItems": 10,
+      "title": "Cc"
+     },
+     "subject": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Subject"
+     },
+     "body": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 5000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Body"
+     }
+    },
+    "type": "object",
+    "required": [
+     "to"
+    ],
+    "title": "EmailIn"
    },
    "EntryIn": {
     "properties": {

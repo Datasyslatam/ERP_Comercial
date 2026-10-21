@@ -49,6 +49,16 @@ class Settings(BaseSettings):
     einvoice_adapter_co: str = "sandbox_dian"
     einvoice_adapter_ve: str = "sandbox_seniat"
 
+    # Correo saliente (documentos comerciales). "file" guarda .eml en STORAGE_PATH/mail (solo desarrollo/pruebas).
+    email_backend: Literal["file", "smtp"] = "file"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_starttls: bool = True
+    smtp_ssl: bool = False
+    mail_from: str = ""
+
     sentry_dsn: str = ""
     log_level: str = "INFO"
 

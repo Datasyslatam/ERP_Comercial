@@ -18,6 +18,7 @@
 
 | Área | Rutas principales |
 |---|---|
+| Documentos comerciales | `/documents/{tipo}/{id}/pdf`, `/email`, `/email-defaults`, `/emails` (cotización, pedido, OC, factura) |
 | Trazabilidad | `/trace/{tipo}/{id}` (cadena documental entre módulos), `/trace/search?q=` |
 | Autenticación y administración | `/auth/*`, `/admin/users` (ficha, roles, contraseña, desbloqueo, sesiones), `/admin/roles`, `/admin/permissions`, `/admin/access-review`, `/admin/audit` (+ `export.csv`), `/admin/login-attempts` |
 | Empresa y parametrización | `/company`, `/company/settings`, `/company/modules/{m}`, `/approval-limits`, `/sites`, `/business-units`, `/cost-centers`, `/exchange-rates`, `/document-sequences`, `/posting-accounts` |

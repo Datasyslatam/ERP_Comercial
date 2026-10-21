@@ -31,6 +31,17 @@
   aparecen como *Sin acceso*.
 - En el **kardex**, un clic en un movimiento de recepción, despacho, devolución o inspección abre su cadena.
 
+## Documentos en PDF y envío por correo
+- En la **cotización**, el **pedido**, la **orden de compra** y la **factura o nota** hay dos acciones:
+  *Descargar PDF* y *Enviar por correo*.
+- El PDF lleva los datos de la empresa y del tercero, las líneas con descuentos e impuestos, los totales y, en
+  facturas, el CUFE / número de control y la autorización de numeración. Mientras se opere con el adaptador
+  SANDBOX, la factura indica "Documento de PRUEBAS: sin validez fiscal".
+- *Enviar por correo* propone el correo del cliente o proveedor, el asunto y un mensaje que puede editar; admite
+  varios destinatarios y copia. El envío queda en cola y el historial muestra si fue entregado o el error.
+- Solo se envía lo que tiene sentido para el negocio: cotizaciones vigentes (al enviarla pasa a *Enviada*), pedidos
+  confirmados, órdenes de compra aprobadas y facturas emitidas.
+
 ## Compras
 1. **Solicitud**: Compras → Solicitudes → *Nueva*. Agregue artículos y cantidades → *Enviar*.
 2. **Aprobación**: un usuario distinto al solicitante la aprueba o rechaza (con motivo). Si la empresa

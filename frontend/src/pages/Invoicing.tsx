@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { TracePanel } from "../components/TracePanel";
+import { DocumentActions } from "../components/DocumentActions";
 import { ActionButton, Alert, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
 import { download, Json, post, qs } from "../lib/api";
 import { fmtDate, fmtMoney, fmtNumber, label } from "../lib/format";
@@ -65,6 +66,8 @@ export function InvoicingPage() {
             { key: "result_status", title: "Resultado", render: (r) => <Badge value={r.result_status} /> },
             { key: "provider_message", title: "Mensaje" }]} />
           <div className="row">
+            {detail.data.status === "issued" && <DocumentActions type="sales_invoice" id={detail.data.id}
+              number={detail.data.full_number ?? String(detail.data.id)} canSend={can("einvoicing.invoice.create")} />}
             {detail.data.submissions?.some((s: Json) => s.document_attachment_id) &&
               <button className="secondary" onClick={() => download(`/einvoicing/invoices/${current}/document`, `${detail.data.full_number}.xml`)}>
                 Descargar documento</button>}
