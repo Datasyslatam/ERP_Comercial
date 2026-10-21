@@ -84,6 +84,7 @@ Un usuario recibe roles por empresa; opcionalmente restringidos a una sede y con
 - Única: (user_id, company_id, role_id, site_id)
 - Índice `ix_user_company_roles_company_id`: (user_company_roles.company_id)
 - Índice `ix_user_company_roles_user_id`: (user_company_roles.user_id)
+- Índice único `uq_user_company_roles_no_site`: (user_company_roles.user_id, user_company_roles.company_id, user_company_roles.role_id)
 
 ### `refresh_tokens`
 
@@ -2058,6 +2059,61 @@ Saldos iniciales: documentan fecha de corte, origen y aprobación responsable an
 - Índice `ix_opening_balance_batches_company_id`: (opening_balance_batches.company_id)
 - Verificación `ck_opening_balance_batches_kind_valid`: `kind in ('stock','receivables','payables','gl')`
 - Verificación `ck_opening_balance_batches_status_valid`: `status in ('draft','approved','posted','cancelled')`
+
+## Otras
+
+### `sales_quote_lines`
+
+| Columna | Tipo | Nulo | Por defecto | Referencia |
+|---|---|---|---|---|
+| `quote_id` | BIGINT | no |  | sales_quotes.id |
+| `line_no` | BIGINT | no |  |  |
+| `item_id` | BIGINT | no |  | items.id |
+| `description` | VARCHAR(255) | sí |  |  |
+| `quantity` | NUMERIC(18, 6) | no |  |  |
+| `unit_price` | NUMERIC(18, 6) | no |  |  |
+| `discount_pct` | NUMERIC(18, 6) | no | 0 |  |
+| `tax_id` | BIGINT | sí |  | taxes.id |
+| `id` (PK) | BIGINT | no |  |  |
+
+- Única: (quote_id, line_no)
+- Índice `ix_sales_quote_lines_quote_id`: (sales_quote_lines.quote_id)
+- Verificación `ck_sales_quote_lines_values_valid`: `quantity > 0 and unit_price >= 0`
+- Verificación `ck_sales_quote_lines_discount_valid`: `discount_pct >= 0 and discount_pct <= 100`
+
+### `sales_quotes`
+
+Cotización a cliente: precede al pedido y deja trazabilidad de la oferta (aceptada, perdida o vencida).
+
+| Columna | Tipo | Nulo | Por defecto | Referencia |
+|---|---|---|---|---|
+| `number` | VARCHAR(30) | no |  |  |
+| `site_id` | BIGINT | no |  | sites.id |
+| `customer_id` | BIGINT | no |  | parties.id |
+| `quote_date` | DATE | no |  |  |
+| `valid_until` | DATE | no |  |  |
+| `currency` | VARCHAR(3) | no |  | currencies.code |
+| `payment_term_id` | BIGINT | sí |  | payment_terms.id |
+| `contact_name` | VARCHAR(120) | sí |  |  |
+| `status` | VARCHAR(10) | no | draft |  |
+| `subtotal` | NUMERIC(18, 2) | no | 0 |  |
+| `tax_total` | NUMERIC(18, 2) | no | 0 |  |
+| `total` | NUMERIC(18, 2) | no | 0 |  |
+| `notes` | TEXT | sí |  |  |
+| `lost_reason` | VARCHAR(255) | sí |  |  |
+| `sales_order_id` | BIGINT | sí |  | sales_orders.id |
+| `created_by_id` | BIGINT | sí |  | users.id |
+| `id` (PK) | BIGINT | no |  |  |
+| `company_id` | BIGINT | no |  | companies.id |
+| `created_at` | DATETIME | no | now() |  |
+| `updated_at` | DATETIME | no | now() |  |
+
+- Única: (company_id, number)
+- Índice `ix_sales_quotes_company_id`: (sales_quotes.company_id)
+- Índice `ix_sales_quotes_customer_id`: (sales_quotes.customer_id)
+- Índice `ix_sales_quotes_sales_order_id`: (sales_quotes.sales_order_id)
+- Verificación `ck_sales_quotes_validity_valid`: `valid_until >= quote_date`
+- Verificación `ck_sales_quotes_status_valid`: `status in ('draft','sent','accepted','rejected','cancelled')`
 
 ## Reglas en base de datos (migración 0002)
 

@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { ActionButton, Alert, Badge, DataTable, Form, Modal, Page } from "../components/ui";
-import { download, Json, post, put } from "../lib/api";
-import { fmtMoney } from "../lib/format";
-import { useFetch, useOptions } from "../lib/hooks";
+import { useLocation } from "react-router-dom";
+import { TracePanel } from "../components/TracePanel";
+import { ActionButton, Alert, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
+import { download, Json, post, put, qs } from "../lib/api";
+import { fmtDate, fmtMoney } from "../lib/format";
+import { useFetch, useLookup, useOptions } from "../lib/hooks";
 import { useSession } from "../lib/session";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -10,17 +12,26 @@ const monthStart = () => today().slice(0, 8) + "01";
 
 export function ReportsPage() {
   const { can } = useSession();
-  const [report, setReport] = useState("trial-balance");
+  const { pathname } = useLocation();
+  const [report, setReport] = useState(pathname.endsWith("estado-resultados") ? "income-statement"
+    : pathname.endsWith("flujo-efectivo") ? "cash-flow" : "trial-balance");
   const [start, setStart] = useState(monthStart());
   const [end, setEnd] = useState(today());
-  const path = report === "balance-sheet" ? `/accounting/reports/balance-sheet?as_of=${end}` : `/accounting/reports/${report}?start=${start}&end=${end}`;
+  const [account, setAccount] = useState("");
+  const accounts = useOptions("/accounts?limit=500", (x) => `${x.code} ${x.name}`);
+  const path = report === "balance-sheet" ? `/accounting/reports/balance-sheet?as_of=${end}`
+    : report === "general-ledger" ? (account ? `/accounting/reports/general-ledger/${account}?start=${start}&end=${end}` : null)
+    : `/accounting/reports/${report}?start=${start}&end=${end}`;
   const { data, error } = useFetch<Json>(path);
   return (
     <Page title="Estados financieros" actions={<>
       <select aria-label="Reporte" value={report} onChange={(e) => setReport(e.target.value)}>
         <option value="trial-balance">Balance de prueba</option><option value="income-statement">Estado de resultados</option>
         <option value="balance-sheet">Balance general</option><option value="cash-flow">Flujo de efectivo</option>
+        <option value="general-ledger">Libro mayor</option><option value="journal">Libro diario</option>
       </select>
+      {report === "general-ledger" && <select aria-label="Cuenta" value={account} onChange={(e) => setAccount(e.target.value)}>
+        <option value="">Seleccione la cuenta…</option>{accounts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>}
       {report !== "balance-sheet" && <input type="date" aria-label="Desde" value={start} onChange={(e) => setStart(e.target.value)} />}
       <input type="date" aria-label="Hasta" value={end} onChange={(e) => setEnd(e.target.value)} />
       {report === "trial-balance" && can("accounting.reports.export") &&
@@ -51,6 +62,19 @@ export function ReportsPage() {
         </div>)}
         <p>Resultado del ejercicio no cerrado: {fmtMoney(data.current_result)}</p>
       </>}
+      {data && report === "general-ledger" && data.account && <>
+        <p>{data.account.code} {data.account.name} · Saldo inicial {fmtMoney(data.opening)} · Saldo final <strong>{fmtMoney(data.closing)}</strong></p>
+        <DataTable rows={data.lines} empty="Sin movimientos en el periodo" columns={[{ key: "entry_date", title: "Fecha" }, { key: "number", title: "Comprobante" },
+          { key: "description", title: "Detalle", render: (r) => r.description ?? (r.source_type ? `${r.source_type} #${r.source_id}` : "—") },
+          { key: "debit", title: "Débito", align: "right", render: (r) => fmtMoney(r.debit) }, { key: "credit", title: "Crédito", align: "right", render: (r) => fmtMoney(r.credit) },
+          { key: "balance", title: "Saldo", align: "right", render: (r) => fmtMoney(r.balance) }]} />
+      </>}
+      {report === "general-ledger" && !account && <p className="muted">Seleccione una cuenta para ver su libro mayor.</p>}
+      {data && report === "journal" && Array.isArray(data) && (data.length ? data.map((e: Json) => <div key={e.id}>
+        <h3>{e.number} · {e.date} · {e.description}</h3>
+        <DataTable rows={e.lines} columns={[{ key: "account", title: "Cuenta" }, { key: "account_name", title: "Nombre" },
+          { key: "debit", title: "Débito", align: "right", render: (r) => fmtMoney(r.debit) }, { key: "credit", title: "Crédito", align: "right", render: (r) => fmtMoney(r.credit) }]} />
+      </div>) : <p className="muted">Sin comprobantes en el periodo.</p>)}
       {data && report === "cash-flow" && (data.status ? <Alert kind="warning">{data.message}</Alert> : <>
         <p>Efectivo inicial {fmtMoney(data.opening_cash)} · final <strong>{fmtMoney(data.closing_cash)}</strong></p>
         <DataTable rows={data.operating} columns={[{ key: "concept", title: "Concepto" }, { key: "amount", title: "Valor", align: "right", render: (r) => fmtMoney(r.amount) }]} />
@@ -65,11 +89,12 @@ export function EntriesPage() {
   const { data, reload } = useFetch<Json>("/accounting/entries?limit=100");
   const accounts = useOptions("/accounts?limit=500", (x) => `${x.code} ${x.name}`);
   const [creating, setCreating] = useState(false);
+  const [current, setCurrent] = useState<number | null>(null);
   const [rows, setRows] = useState([{ account_id: "", debit: "", credit: "" }, { account_id: "", debit: "", credit: "" }]);
   const sum = (k: "debit" | "credit") => rows.reduce((s, r) => s + Number(r[k] || 0), 0);
   return (
     <Page title="Comprobantes contables" actions={can("accounting.journal.create") && <button onClick={() => setCreating(true)}>Comprobante manual</button>}>
-      <DataTable rows={data?.items} columns={[{ key: "number", title: "Número" }, { key: "entry_date", title: "Fecha" },
+      <DataTable rows={data?.items} onRowClick={(r) => setCurrent(r.id)} columns={[{ key: "number", title: "Número" }, { key: "entry_date", title: "Fecha" },
         { key: "journal_type", title: "Diario" }, { key: "description", title: "Descripción" },
         { key: "source", title: "Origen", render: (r) => r.source_type ? `${r.source_type} #${r.source_id ?? ""}` : "manual" },
         { key: "status", title: "Estado", render: (r) => <Badge value={r.status} /> },
@@ -80,6 +105,7 @@ export function EntriesPage() {
             <ActionButton className="danger" onClick={async () => { const reason = window.prompt("Motivo del reverso");
               if (reason) { await post(`/accounting/entries/${r.id}/reverse`, { reversal_date: today(), reason }); reload(); } }}>Reversar</ActionButton>}
         </span> }]} />
+      {current && <EntryModal id={current} accounts={accounts} onClose={() => setCurrent(null)} />}
       {creating && <Modal title="Comprobante manual (borrador)" onClose={() => setCreating(false)}>
         <table className="lines"><tbody>{rows.map((r, i) => <tr key={i}>
           <td><select aria-label="Cuenta" value={r.account_id} onChange={(e) => setRows(rows.map((x, j) => j === i ? { ...x, account_id: e.target.value } : x))}>
@@ -122,7 +148,9 @@ export function PeriodsPage() {
   const year = new Date().getFullYear();
   const { data, reload } = useFetch<Json[]>(`/accounting/periods?year=${year}`);
   return (
-    <Page title={`Periodos contables ${year}`}>
+    <Page title={`Periodos contables ${year}`} actions={can("accounting.period.admin") &&
+      <ActionButton className="secondary" confirm={`Se generará el asiento de cierre de ${year - 1}: traslada ingresos, costos y gastos a resultados acumulados. ¿Continuar?`}
+        onClick={async () => { await post("/accounting/year-close", { year: year - 1, month: 12 }); reload(); }}>Cierre del ejercicio {year - 1}</ActionButton>}>
       <DataTable rows={data} columns={[{ key: "month", title: "Mes" }, { key: "start_date", title: "Desde" }, { key: "end_date", title: "Hasta" },
         { key: "status", title: "Estado", render: (r) => <Badge value={r.status === "open" ? "open" : "closed"} /> },
         { key: "reopen_reason", title: "Motivo reapertura" },
@@ -238,6 +266,155 @@ export function PaymentModal({ kind, item, onClose, onDone }: {
             allocations: [{ open_item_id: item.open_item_id, amount: applied }] });
           onDone();
         }} />
+    </Modal>
+  );
+}
+
+// ------------------------------------------------------------------ pagos y recaudos
+export function PaymentsPage() {
+  const { can } = useSession();
+  const [kind, setKind] = useState("");
+  const { data, reload } = useFetch<Json>(`/accounting/payments${qs({ kind, limit: 200 })}`);
+  const partyName = useLookup("/parties?limit=500", (x) => x.legal_name);
+  const [current, setCurrent] = useState<Json | null>(null);
+  const [voiding, setVoiding] = useState(false);
+  return (
+    <Page title="Pagos y recaudos" subtitle="Movimientos de tesorería aplicados a facturas, con retenciones e IGTF" actions={
+      <select aria-label="Tipo" value={kind} onChange={(e) => setKind(e.target.value)}><option value="">Todos</option>
+        <option value="receipt">Recaudos de clientes</option><option value="disbursement">Pagos a proveedores</option></select>}>
+      <DataTable rows={data?.items} onRowClick={setCurrent} columns={[{ key: "number", title: "Número" }, { key: "payment_date", title: "Fecha" },
+        { key: "kind", title: "Tipo", render: (r) => r.kind === "receipt" ? "Recaudo" : "Pago" },
+        { key: "party_id", title: "Tercero", render: (r) => partyName(r.party_id) }, { key: "method", title: "Medio" },
+        { key: "reference", title: "Referencia", render: (r) => r.reference ?? "—" },
+        { key: "withholding_amount", title: "Retenciones", align: "right", render: (r) => fmtMoney(r.withholding_amount) },
+        { key: "amount", title: "Valor", align: "right", render: (r) => fmtMoney(r.amount, r.currency) },
+        { key: "status", title: "Estado", render: (r) => <Badge value={r.status === "voided" ? "cancelled" : "posted"} /> }]} />
+      {current && <Modal title={`${current.kind === "receipt" ? "Recaudo" : "Pago"} ${current.number}`} onClose={() => { setCurrent(null); setVoiding(false); }}>
+        <KeyValues data={current} keys={[["payment_date", "Fecha"], ["party_id", "Tercero", (v) => partyName(v)], ["method", "Medio"],
+          ["reference", "Referencia"], ["amount", "Valor", fmtMoney], ["withholding_amount", "Retenciones", fmtMoney], ["igtf_amount", "IGTF", fmtMoney]]} />
+        {current.status === "posted" && can("accounting.payments.void") && (voiding
+          ? <Form submitLabel="Anular pago" fields={[{ name: "reason", label: "Motivo de la anulación", type: "textarea", required: true }]}
+              onSubmit={async (d) => { await post(`/accounting/payments/${current.id}/void`, d); setCurrent(null); setVoiding(false); reload(); }} />
+          : <p><button className="danger" onClick={() => setVoiding(true)}>Anular</button> <span className="muted">Reabre las partidas aplicadas y reversa el comprobante.</span></p>)}
+        <h3>Trazabilidad</h3>
+        <TracePanel type="payment" id={current.id} />
+      </Modal>}
+    </Page>
+  );
+}
+
+// ------------------------------------------------------------------ conciliación bancaria
+/** Interpreta líneas pegadas desde el extracto: fecha;descripción;referencia;valor (separador ; o tabulador). */
+export function parseStatementLines(text: string): Json[] {
+  return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const [txn_date, description, reference, amount] = l.split(/[;\t]/).map((x) => x.trim());
+    const raw = amount ?? "";
+    // 1.500.000,50 (formato local) o 1500000.50
+    return { txn_date, description, reference: reference || null, amount: raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw };
+  }).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.txn_date) && x.amount !== "" && !Number.isNaN(Number(x.amount)));
+}
+
+export function BankReconciliationPage() {
+  const { can } = useSession();
+  const banks = useOptions("/bank-accounts", (x) => `${x.name} (${x.currency})`);
+  const [bank, setBank] = useState("");
+  const statements = useFetch<Json[]>(`/accounting/bank-statements${qs({ bank_account_id: bank })}`);
+  const [current, setCurrent] = useState<number | null>(null);
+  const [importing, setImporting] = useState(false);
+  return (
+    <Page title="Conciliación bancaria" subtitle="Extractos del banco frente a los movimientos contables de la cuenta"
+          actions={can("accounting.bank.create") && <button onClick={() => setImporting(true)}>Cargar extracto</button>}>
+      <div className="filters"><label>Cuenta bancaria<select value={bank} onChange={(e) => setBank(e.target.value)}><option value="">Todas</option>
+        {banks.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label></div>
+      <DataTable rows={statements.data} onRowClick={(r) => setCurrent(r.id)} empty="Sin extractos cargados" columns={[
+        { key: "statement_date", title: "Fecha de corte" }, { key: "source_filename", title: "Archivo", render: (r) => r.source_filename ?? "—" },
+        { key: "opening_balance", title: "Saldo inicial", align: "right", render: (r) => fmtMoney(r.opening_balance) },
+        { key: "closing_balance", title: "Saldo final", align: "right", render: (r) => fmtMoney(r.closing_balance) }]} />
+      {importing && <StatementImport banks={banks} onClose={() => setImporting(false)} onDone={(id) => { setImporting(false); statements.reload(); setCurrent(id); }} />}
+      {current && <ReconciliationModal statementId={current} onClose={() => setCurrent(null)} />}
+    </Page>
+  );
+}
+
+function StatementImport({ banks, onClose, onDone }: { banks: { value: number; label: string }[]; onClose: () => void; onDone: (id: number) => void }) {
+  const [text, setText] = useState("");
+  const lines = parseStatementLines(text);
+  const total = lines.reduce((s, l) => s + Number(l.amount), 0);
+  return (
+    <Modal title="Cargar extracto bancario" onClose={onClose}>
+      <label className="span-2"><span>Movimientos (una línea por movimiento: AAAA-MM-DD;descripción;referencia;valor — débitos con signo negativo)</span>
+        <textarea aria-label="Movimientos del extracto" rows={8} value={text} onChange={(e) => setText(e.target.value)}
+          placeholder={"2026-10-01;Consignación cliente;RC-000001;1500000\n2026-10-02;Pago proveedor;CE-000004;-850000"} /></label>
+      <p className="muted">{lines.length} movimiento(s) reconocidos · neto {fmtMoney(total)}</p>
+      <Form fields={[{ name: "bank_account_id", label: "Cuenta bancaria", type: "select", required: true, options: banks },
+        { name: "statement_date", label: "Fecha de corte", type: "date", required: true },
+        { name: "opening_balance", label: "Saldo inicial según banco", type: "number", required: true },
+        { name: "closing_balance", label: "Saldo final según banco", type: "number", required: true },
+        { name: "source_filename", label: "Archivo o referencia del extracto" }]}
+        submitLabel="Cargar extracto"
+        onSubmit={async (d) => {
+          if (!lines.length) throw new Error("Pegue al menos un movimiento con el formato indicado");
+          if (Math.abs(Number(d.opening_balance) + total - Number(d.closing_balance)) > 0.005)
+            throw new Error(`Saldo inicial + movimientos (${fmtMoney(Number(d.opening_balance) + total)}) no coincide con el saldo final`);
+          const st = await post("/accounting/bank-statements", { ...d, lines });
+          onDone(st.id);
+        }} />
+    </Modal>
+  );
+}
+
+function ReconciliationModal({ statementId, onClose }: { statementId: number; onClose: () => void }) {
+  const { can } = useSession();
+  const { data: r, reload } = useFetch<Json>(`/accounting/bank-statements/${statementId}/reconciliation`);
+  const [matching, setMatching] = useState<Json | null>(null);
+  const approve = can("accounting.bank.approve");
+  if (!r) return <Modal title="Conciliación" onClose={onClose}><p className="muted">Cargando…</p></Modal>;
+  const diff = Number(r.difference);
+  return (
+    <Modal title="Conciliación del extracto" onClose={onClose}>
+      <div className="summary">
+        <span>Saldo banco <strong>{fmtMoney(r.statement_balance)}</strong></span><span>Saldo libros <strong>{fmtMoney(r.book_balance)}</strong></span>
+        <span>Diferencia <strong className={Math.abs(diff) > 0.005 ? "warn-text" : ""}>{fmtMoney(r.difference)}</strong></span>
+        <span>Conciliados {r.matched_in_statement}</span>
+        {approve && <ActionButton onClick={async () => { await post(`/accounting/bank-statements/${statementId}/auto-match`); reload(); }}>Conciliar automáticamente</ActionButton>}
+      </div>
+      <h3>Movimientos del banco sin conciliar</h3>
+      <DataTable rows={r.unmatched_statement_lines} empty="Todos los movimientos del extracto están conciliados" columns={[
+        { key: "date", title: "Fecha" }, { key: "description", title: "Descripción" },
+        { key: "amount", title: "Valor", align: "right", render: (x) => fmtMoney(x.amount) },
+        { key: "a", title: "", render: (x) => approve && <span className="row">
+          <button className="secondary" onClick={() => setMatching(x)}>Conciliar con…</button>
+          <ActionButton className="secondary" confirm="¿Marcar como partida que no requiere registro contable (p. ej. ajuste del banco ya registrado)?"
+            onClick={async () => { await post(`/accounting/bank-statement-lines/${x.id}/match`, { ignore: true }); reload(); }}>Ignorar</ActionButton></span> }]} />
+      <h3>Partidas en libros no reflejadas en el banco</h3>
+      <DataTable rows={r.outstanding_book_items} empty="Sin partidas pendientes" columns={[{ key: "entry_date", title: "Fecha" }, { key: "number", title: "Comprobante" },
+        { key: "amount", title: "Valor", align: "right", render: (x) => fmtMoney(x.amount) }]} />
+      <p className="muted">Las partidas en libros pendientes (cheques no cobrados, consignaciones en tránsito) explican la diferencia hasta que aparezcan en un extracto posterior.</p>
+      {matching && <Modal title={`Conciliar ${matching.description} (${fmtMoney(matching.amount)})`} onClose={() => setMatching(null)}>
+        <DataTable rows={r.outstanding_book_items.filter((b: Json) => Number(b.amount) === Number(matching.amount))}
+          empty="No hay partidas en libros por el mismo valor; registre primero el comprobante que falta." columns={[
+            { key: "entry_date", title: "Fecha" }, { key: "number", title: "Comprobante" }, { key: "amount", title: "Valor", align: "right", render: (x) => fmtMoney(x.amount) },
+            { key: "a", title: "", render: (b) => <ActionButton onClick={async () => {
+              await post(`/accounting/bank-statement-lines/${matching.id}/match`, { journal_line_id: b.id }); setMatching(null); reload(); }}>Conciliar</ActionButton> }]} />
+      </Modal>}
+    </Modal>
+  );
+}
+
+function EntryModal({ id, accounts, onClose }: { id: number; accounts: { value: number; label: string }[]; onClose: () => void }) {
+  const { data: e } = useFetch<Json>(`/accounting/entries/${id}`);
+  const partyName = useLookup("/parties?limit=500", (x) => x.legal_name);
+  const accountName = (aid: unknown) => accounts.find((a) => a.value === Number(aid))?.label ?? `#${aid}`;
+  if (!e) return <Modal title="Comprobante" onClose={onClose}><p className="muted">Cargando…</p></Modal>;
+  return (
+    <Modal title={`Comprobante ${e.number}`} onClose={onClose}>
+      <KeyValues data={e} keys={[["entry_date", "Fecha"], ["journal_type", "Diario"], ["description", "Descripción"],
+        ["status", "Estado", (v) => <Badge value={v} />], ["source_type", "Origen", (v) => v ?? "manual"], ["created_at", "Registrado", fmtDate]]} />
+      <DataTable rows={e.lines} columns={[{ key: "account_id", title: "Cuenta", render: (r) => accountName(r.account_id) },
+        { key: "party_id", title: "Tercero", render: (r) => r.party_id ? partyName(r.party_id) : "—" }, { key: "description", title: "Detalle", render: (r) => r.description ?? "" },
+        { key: "debit", title: "Débito", align: "right", render: (r) => fmtMoney(r.debit) }, { key: "credit", title: "Crédito", align: "right", render: (r) => fmtMoney(r.credit) }]} />
+      <h3>Trazabilidad</h3>
+      <TracePanel type="journal_entry" id={id} />
     </Modal>
   );
 }

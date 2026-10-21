@@ -80,7 +80,11 @@ class UserCompanyRole(IdMixin, Base):
     (reemplazos por vacaciones, auditorías externas, accesos temporales)."""
 
     __tablename__ = "user_company_roles"
-    __table_args__ = (UniqueConstraint("user_id", "company_id", "role_id", "site_id"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "company_id", "role_id", "site_id"),
+        Index("uq_user_company_roles_no_site", "user_id", "company_id", "role_id", unique=True,
+              postgresql_where=text("site_id is null")),
+    )
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)

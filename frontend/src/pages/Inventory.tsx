@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { ActionButton, Badge, DataTable, Form, Modal, Page } from "../components/ui";
+import { useNavigate } from "react-router-dom";
+import { TracePanel } from "../components/TracePanel";
+import { ActionButton, Alert, Badge, DataTable, Form, Modal, Page } from "../components/ui";
 import { Json, post, qs } from "../lib/api";
 import { fmtDate, fmtMoney, fmtNumber } from "../lib/format";
 import { useFetch, useItemNames, useLookup, useOptions } from "../lib/hooks";
@@ -13,13 +15,9 @@ export function StockPage() {
   const items = useOptions("/items?limit=500", (x) => `${x.sku} · ${x.name}`);
   const { data } = useFetch<Json[]>(`/inventory/stock${qs({ item_id: itemId, below_min: belowMin || undefined })}`);
   const consistency = useFetch<Json>("/inventory/consistency");
-  const expiring = useFetch<Json[]>("/inventory/expiring?days=30");
-  const replen = useFetch<Json[]>("/inventory/replenishment");
-  const start = today().slice(0, 8) + "01";
-  const kardex = useFetch<Json>(itemId ? `/inventory/kardex/${itemId}?start=${start}&end=${today()}` : null);
   const total = (data ?? []).reduce((s, r) => s + Number(r.value), 0);
   return (
-    <Page title="Existencias y kardex" subtitle="Calculado desde el libro de movimientos de inventario" actions={<>
+    <Page title="Existencias" subtitle="Saldos por ubicación y lote, calculados desde el libro de movimientos" actions={<>
       <select aria-label="Artículo" value={itemId} onChange={(e) => setItemId(e.target.value)}>
         <option value="">Todos los artículos</option>{items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
@@ -36,24 +34,104 @@ export function StockPage() {
         { key: "qty_reserved", title: "Reservado", align: "right", render: (r) => fmtNumber(r.qty_reserved) },
         { key: "qty_available", title: "Disponible", align: "right", render: (r) => fmtNumber(r.qty_available) },
         { key: "value", title: "Valor", align: "right", render: (r) => fmtMoney(r.value) }]} />
-      {kardex.data && <>
-        <h3>Kardex del mes</h3>
-        <p className="muted">Saldo inicial {fmtNumber(kardex.data.opening_qty)} · {fmtMoney(kardex.data.opening_value)}</p>
-        <DataTable rows={kardex.data.moves} columns={[{ key: "date", title: "Fecha", render: (r) => fmtDate(r.date) },
-          { key: "type", title: "Tipo" }, { key: "reference", title: "Documento" }, { key: "reason", title: "Motivo" },
+    </Page>
+  );
+}
+
+const MOVE_SOURCES: Record<string, [string, string]> = {
+  goods_receipt: ["Recepción", "goods_receipt"], dispatch: ["Despacho", "dispatch"], customer_return: ["Devolución", "customer_return"],
+  inspection: ["Inspección", "inspection"],
+};
+
+/** El kardex expone el origen del movimiento como "tipo:id". */
+const sourceOf = (r: Json): [string, string] => {
+  const [t, id] = String(r.source ?? "").split(":");
+  return [t, id];
+};
+
+export function KardexPage() {
+  const [itemId, setItemId] = useState("");
+  const [start, setStart] = useState(today().slice(0, 8) + "01");
+  const [end, setEnd] = useState(today());
+  const [traceOf, setTraceOf] = useState<Json | null>(null);
+  const items = useOptions("/items?limit=500", (x) => `${x.sku} · ${x.name}`);
+  const { data: k } = useFetch<Json>(itemId ? `/inventory/kardex/${itemId}${qs({ start, end })}` : null);
+  return (
+    <Page title="Kardex" subtitle="Movimientos valorizados por artículo con saldo y costo promedio">
+      <div className="filters">
+        <label>Artículo<select value={itemId} onChange={(e) => setItemId(e.target.value)}>
+          <option value="">Seleccione…</option>{items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+        <label>Desde<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
+        <label>Hasta<input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
+      </div>
+      {k && <>
+        <div className="summary"><span>Saldo inicial <strong>{fmtNumber(k.opening_qty)}</strong> · {fmtMoney(k.opening_value)}</span>
+          {k.moves.length > 0 && <span>Saldo final <strong>{fmtNumber(k.moves[k.moves.length - 1].balance_qty)}</strong> · {fmtMoney(k.moves[k.moves.length - 1].balance_value)}</span>}</div>
+        <DataTable rows={k.moves} empty="Sin movimientos en el periodo" onRowClick={(r) => MOVE_SOURCES[sourceOf(r)[0]] && setTraceOf(r)} columns={[
+          { key: "date", title: "Fecha", render: (r) => fmtDate(r.date) }, { key: "type", title: "Tipo" }, { key: "reference", title: "Documento" },
+          { key: "reason", title: "Motivo" },
           { key: "in", title: "Entrada", align: "right", render: (r) => fmtNumber(r.in) }, { key: "out", title: "Salida", align: "right", render: (r) => fmtNumber(r.out) },
           { key: "unit_cost", title: "Costo unit.", align: "right", render: (r) => fmtMoney(r.unit_cost) },
           { key: "balance_qty", title: "Saldo", align: "right", render: (r) => fmtNumber(r.balance_qty) },
           { key: "balance_value", title: "Saldo valor", align: "right", render: (r) => fmtMoney(r.balance_value) }]} />
+        <p className="muted">Haga clic en un movimiento de recepción, despacho, devolución o inspección para ver su cadena documental.</p>
       </>}
-      <h3>Reabastecimiento sugerido</h3>
-      <DataTable rows={replen.data} empty="Ningún artículo bajo el mínimo" columns={[{ key: "sku", title: "SKU" }, { key: "name", title: "Artículo" },
+      {traceOf && <Modal title={`${MOVE_SOURCES[sourceOf(traceOf)[0]][0]} ${traceOf.reference ?? ""}`} onClose={() => setTraceOf(null)}>
+        <TracePanel type={MOVE_SOURCES[sourceOf(traceOf)[0]][1]} id={sourceOf(traceOf)[1]} />
+      </Modal>}
+    </Page>
+  );
+}
+
+export function ReplenishmentPage() {
+  const { can } = useSession();
+  const nav = useNavigate();
+  const { data, reload } = useFetch<Json[]>("/inventory/replenishment");
+  const sites = useOptions("/sites", (x) => x.name);
+  const [qty, setQty] = useState<Record<number, string>>({});
+  const [site, setSite] = useState("");
+  const [neededBy, setNeededBy] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const valueOf = (r: Json) => qty[r.item_id] ?? String(r.suggested_order);
+  return (
+    <Page title="Reabastecimiento" subtitle="Artículos con disponible por debajo del mínimo y cantidad sugerida hasta el máximo">
+      <DataTable rows={data} empty="Ningún artículo bajo el mínimo" columns={[{ key: "sku", title: "SKU" }, { key: "name", title: "Artículo" },
         { key: "available", title: "Disponible", align: "right", render: (r) => fmtNumber(r.available) },
         { key: "min_stock", title: "Mínimo", align: "right", render: (r) => fmtNumber(r.min_stock) },
-        { key: "suggested_order", title: "Sugerido", align: "right", render: (r) => fmtNumber(r.suggested_order) }]} />
-      <h3>Lotes próximos a vencer (30 días)</h3>
-      <DataTable rows={expiring.data} empty="Sin lotes próximos a vencer" columns={[{ key: "sku", title: "SKU" }, { key: "lot_number", title: "Lote" },
-        { key: "expiry_date", title: "Vence" }, { key: "days_left", title: "Días" }, { key: "qty", title: "Cantidad", align: "right", render: (r) => fmtNumber(r.qty) }]} />
+        { key: "max_stock", title: "Máximo", align: "right", render: (r) => fmtNumber(r.max_stock) },
+        { key: "suggested_order", title: "Sugerido", align: "right", render: (r) => fmtNumber(r.suggested_order) },
+        { key: "qty", title: "A solicitar", render: (r) => <input type="number" min="0" step="any" aria-label={`Cantidad ${r.sku}`} style={{ width: 110 }}
+          value={valueOf(r)} onChange={(e) => setQty({ ...qty, [r.item_id]: e.target.value })} /> }]} />
+      {!!data?.length && can("purchasing.requisition.create") && <div className="filters">
+        <label>Sede solicitante<select value={site} onChange={(e) => setSite(e.target.value)}><option value="">—</option>
+          {sites.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+        <label>Requerida para<input type="date" value={neededBy} onChange={(e) => setNeededBy(e.target.value)} /></label>
+        <ActionButton onClick={async () => {
+          setError(null);
+          if (!site) { setError("Seleccione la sede solicitante"); return; }
+          const quantities = Object.fromEntries((data ?? []).map((r) => [r.item_id, valueOf(r) || "0"]));
+          const req = await post("/purchasing/requisitions/from-replenishment", { site_id: Number(site), needed_by: neededBy || null, quantities });
+          reload(); nav(`/compras/solicitudes?focus=${req.id}`);
+        }}>Generar solicitud de compra</ActionButton>
+        <Alert>{error}</Alert>
+      </div>}
+      <p className="muted">La solicitud queda en borrador con el último precio de compra como estimado; siga el flujo normal de aprobación en Compras.</p>
+    </Page>
+  );
+}
+
+export function ExpiringPage() {
+  const [days, setDays] = useState("60");
+  const { data } = useFetch<Json[]>(`/inventory/expiring?days=${Number(days) || 0}`);
+  return (
+    <Page title="Vencimientos" subtitle="Lotes con existencia que vencen en el horizonte indicado (FEFO: despachar primero lo que vence antes)">
+      <div className="filters"><label>Horizonte (días)<input type="number" min="0" max="365" value={days} onChange={(e) => setDays(e.target.value)} /></label></div>
+      <DataTable rows={data} empty="Sin lotes por vencer en el horizonte" columns={[{ key: "sku", title: "SKU" }, { key: "name", title: "Artículo" },
+        { key: "lot_number", title: "Lote" }, { key: "expiry_date", title: "Vence" },
+        { key: "days_left", title: "Días", align: "right", render: (r) => <span className={Number(r.days_left) <= 7 ? "warn-text" : ""}>{r.days_left}</span> },
+        { key: "status", title: "Estado lote", render: (r) => <Badge value={r.status} /> },
+        { key: "qty", title: "Cantidad", align: "right", render: (r) => fmtNumber(r.qty) }]} />
+      <p className="muted">Los lotes vencidos o en cuarentena se bloquean desde Calidad → Inspecciones (estado del lote).</p>
     </Page>
   );
 }

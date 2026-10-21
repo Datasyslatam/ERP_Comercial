@@ -1,15 +1,18 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
-import { AlertsPage, EntriesPage, GoalsBudgetsPage, PeriodsPage, ReceivablesPage, ReportsPage } from "./pages/Accounting";
+import { AlertsPage, BankReconciliationPage, EntriesPage, GoalsBudgetsPage, PaymentsPage, PeriodsPage, ReceivablesPage,
+  ReportsPage } from "./pages/Accounting";
 import { Dashboard } from "./pages/Dashboard";
-import { CountsPage, InventoryDocumentsPage, StockPage } from "./pages/Inventory";
+import { CountsPage, ExpiringPage, InventoryDocumentsPage, KardexPage, ReplenishmentPage, StockPage } from "./pages/Inventory";
 import { Login } from "./pages/Login";
 import { AccountsPage, ItemsPage, NumberingPage, PartiesPage, TaxesPage, WarehousesPage } from "./pages/Masters";
 import { AuditPage, ChangePasswordForm, RolesPage, UsersPage } from "./pages/Admin";
 import { ImportsPage, WorkOrdersPage } from "./pages/Other";
-import { OrderDetailPage, OrdersPage, RequisitionsPage, SupplierInvoicesPage } from "./pages/Purchasing";
-import { InspectionsPage, NonConformitiesPage } from "./pages/Quality";
-import { DispatchesPage, SalesOrdersPage } from "./pages/Sales";
+import { OrderDetailPage, OrdersPage, PriceHistoryPage, PurchaseBudgetPage, ReceiptsPage, RequisitionsPage, SupplierEvaluationPage,
+  SupplierInvoicesPage } from "./pages/Purchasing";
+import { InspectionPlansPage, InspectionsPage, LotsQualityPage, NonConformitiesPage } from "./pages/Quality";
+import { DispatchesPage, QuotesPage, SalesOrderDetailPage, SalesOrdersPage } from "./pages/Sales";
+import { TracePage } from "./pages/Trace";
 import { DispatchDetailPage, IncidentsPage, ReturnsPage, RoutesPlanPage } from "./pages/Logistics";
 import { InvoicingPage } from "./pages/Invoicing";
 import { BomsPage } from "./pages/Production";
@@ -30,19 +33,26 @@ function Routed() {
         <Route path="compras/solicitudes" element={<RequisitionsPage />} />
         <Route path="compras/ordenes" element={<OrdersPage />} />
         <Route path="compras/ordenes/:id" element={<OrderDetailPage />} />
-        <Route path="compras/recepciones" element={<OrdersPage />} />
+        <Route path="compras/recepciones" element={<ReceiptsPage />} />
         <Route path="compras/facturas" element={<SupplierInvoicesPage />} />
         <Route path="compras/proveedores" element={<PartiesPage />} />
-        <Route path="compras/historial-precios" element={<OrdersPage />} />
+        <Route path="compras/historial-precios" element={<PriceHistoryPage />} />
+        <Route path="compras/evaluacion-proveedores" element={<SupplierEvaluationPage />} />
+        <Route path="compras/presupuesto" element={<PurchaseBudgetPage />} />
         <Route path="inventario/existencias" element={<StockPage />} />
-        <Route path="inventario/kardex" element={<StockPage />} />
-        <Route path="inventario/reabastecimiento" element={<StockPage />} />
-        <Route path="inventario/vencimientos" element={<StockPage />} />
+        <Route path="inventario/kardex" element={<KardexPage />} />
+        <Route path="inventario/reabastecimiento" element={<ReplenishmentPage />} />
+        <Route path="inventario/vencimientos" element={<ExpiringPage />} />
         <Route path="inventario/documentos" element={<InventoryDocumentsPage />} />
         <Route path="inventario/conteos" element={<CountsPage />} />
         <Route path="calidad/inspecciones" element={<InspectionsPage />} />
         <Route path="calidad/no-conformidades" element={<NonConformitiesPage />} />
+        <Route path="calidad/planes" element={<InspectionPlansPage />} />
+        <Route path="calidad/lotes" element={<LotsQualityPage />} />
+        <Route path="ventas/cotizaciones" element={<QuotesPage />} />
         <Route path="ventas/pedidos" element={<SalesOrdersPage />} />
+        <Route path="ventas/pedidos/:id" element={<SalesOrderDetailPage />} />
+        <Route path="trazabilidad" element={<TracePage />} />
         <Route path="logistica/despachos" element={<DispatchesPage />} />
         <Route path="logistica/despachos/:id" element={<DispatchDetailPage />} />
         <Route path="logistica/incidencias" element={<IncidentsPage />} />
@@ -56,6 +66,8 @@ function Routed() {
         <Route path="contabilidad/flujo-efectivo" element={<ReportsPage />} />
         <Route path="contabilidad/comprobantes" element={<EntriesPage />} />
         <Route path="contabilidad/cartera" element={<ReceivablesPage />} />
+        <Route path="contabilidad/pagos" element={<PaymentsPage />} />
+        <Route path="contabilidad/conciliacion" element={<BankReconciliationPage />} />
         <Route path="contabilidad/periodos" element={<PeriodsPage />} />
         <Route path="maestros/terceros" element={<PartiesPage />} />
         <Route path="maestros/articulos" element={<ItemsPage />} />

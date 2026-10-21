@@ -475,3 +475,44 @@ def supplier_evaluation(db: Session, company_id: int, supplier_id: int, start: d
         "score": round(sum(parts) / len(parts), 2) if parts else None,
         "data_quality": "ok" if receipts else "sin_datos",
     }
+
+
+def supplier_ranking(db: Session, company_id: int, start: date, end: date) -> list[dict]:
+    from app.modules.masters.models import Party
+
+    ids = db.scalars(select(GoodsReceipt.supplier_id).where(
+        GoodsReceipt.company_id == company_id, GoodsReceipt.receipt_date >= start, GoodsReceipt.receipt_date <= end)
+        .distinct()).all()
+    names = dict(db.execute(select(Party.id, Party.legal_name).where(Party.id.in_(ids))).all()) if ids else {}
+    rows = [{**supplier_evaluation(db, company_id, sid, start, end), "supplier_name": names.get(sid)} for sid in ids]
+    return sorted(rows, key=lambda r: (r["score"] is None, -(r["score"] or 0)))
+
+
+def requisition_from_replenishment(db: Session, p: Principal, site_id: int, needed_by: date | None,
+                                   quantities: dict[int, Decimal] | None) -> PurchaseRequisition:
+    """Solicitud de compra con los artículos bajo mínimo y su cantidad sugerida (hasta el máximo).
+
+    El precio estimado es el último precio de compra aprobado; `quantities` permite ajustar o excluir artículos."""
+    from app.modules.inventory.service import replenishment_alerts
+
+    suggestions = {r["item_id"]: r for r in replenishment_alerts(db, p.company_id)}
+    if quantities is not None:
+        unknown = set(quantities) - set(suggestions)
+        if unknown:
+            raise BusinessRuleViolation("Hay artículos que no están bajo el mínimo", details={"items": sorted(unknown)})
+    lines = []
+    for item_id, row in suggestions.items():
+        qty = Decimal(quantities[item_id]) if quantities is not None and item_id in quantities \
+            else (None if quantities is not None else Decimal(row["suggested_order"]))
+        if not qty or qty <= 0:
+            continue
+        price = last_purchase_price(db, p.company_id, item_id) or ZERO
+        lines.append({"item_id": item_id, "quantity": qty, "estimated_unit_price": price,
+                      "description": f"Reabastecimiento: disponible {row['available']}, mínimo {row['min_stock']}"})
+    if not lines:
+        raise BusinessRuleViolation("No hay artículos por reabastecer")
+    req = create_requisition(db, p, {"site_id": site_id, "needed_by": needed_by, "lines": lines,
+                                     "justification": "Reabastecimiento de artículos bajo el stock mínimo"})
+    log_action(db, "create", "purchase_requisitions", req.id,
+               f"Solicitud generada desde reabastecimiento ({len(lines)} artículos)")
+    return req

@@ -165,6 +165,22 @@ def create_requisition(body: RequisitionIn, p: Principal = Depends(require("purc
     return to_dict(req, "lines")
 
 
+class ReplenishmentReqIn(BaseModel):
+    site_id: int
+    needed_by: date | None = None
+    quantities: dict[int, Decimal] | None = Field(default=None, description="item_id → cantidad; omita para usar la sugerida")
+
+
+@router.post("/requisitions/from-replenishment", status_code=201)
+def requisition_from_replenishment(body: ReplenishmentReqIn,
+                                   p: Principal = Depends(require("purchasing.requisition.create", "inventory.stock.read")),
+                                   db: Session = Depends(get_db)):
+    """Convierte las sugerencias de reabastecimiento (artículos bajo mínimo) en una solicitud de compra en borrador."""
+    req = svc.requisition_from_replenishment(db, p, body.site_id, body.needed_by, body.quantities)
+    db.commit()
+    return to_dict(req, "lines")
+
+
 @router.get("/requisitions/{req_id}")
 def get_requisition(req_id: int, p: Principal = Depends(require("purchasing.requisition.read")),
                     db: Session = Depends(get_db)):
@@ -323,6 +339,13 @@ def post_invoice(inv_id: int, p: Principal = Depends(require("purchasing.invoice
 def price_history(item_id: int, p: Principal = Depends(require("purchasing.order.read")),
                   db: Session = Depends(get_db)):
     return svc.price_history(db, p.company_id, item_id)
+
+
+@router.get("/suppliers/evaluation")
+def evaluation_ranking(start: date, end: date, p: Principal = Depends(require("purchasing.supplier_eval.read")),
+                       db: Session = Depends(get_db)):
+    """Evaluación de todos los proveedores con recepciones en el periodo, de mejor a peor puntaje."""
+    return svc.supplier_ranking(db, p.company_id, start, end)
 
 
 @router.get("/suppliers/{supplier_id}/evaluation")

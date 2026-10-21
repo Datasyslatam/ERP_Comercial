@@ -61,3 +61,53 @@ class SalesOrderLine(IdMixin, Base):
     qty_dispatched: Mapped[Decimal] = mapped_column(Qty, default=Decimal("0"))
     qty_invoiced: Mapped[Decimal] = mapped_column(Qty, default=Decimal("0"))
     qty_returned: Mapped[Decimal] = mapped_column(Qty, default=Decimal("0"))
+
+
+class SalesQuote(IdMixin, CompanyMixin, TimestampMixin, Base):
+    """Cotización a cliente: precede al pedido y deja trazabilidad de la oferta (aceptada, perdida o vencida)."""
+
+    __tablename__ = "sales_quotes"
+    __table_args__ = (
+        UniqueConstraint("company_id", "number"),
+        CheckConstraint("status in ('draft','sent','accepted','rejected','cancelled')", name="status_valid"),
+        CheckConstraint("valid_until >= quote_date", name="validity_valid"),
+    )
+
+    number: Mapped[str] = mapped_column(String(30))
+    site_id: Mapped[int] = mapped_column(ForeignKey("sites.id"))
+    customer_id: Mapped[int] = mapped_column(ForeignKey("parties.id"), index=True)
+    quote_date: Mapped[date] = mapped_column(Date)
+    valid_until: Mapped[date] = mapped_column(Date)
+    currency: Mapped[str] = mapped_column(ForeignKey("currencies.code"))
+    payment_term_id: Mapped[int | None] = mapped_column(ForeignKey("payment_terms.id"))
+    contact_name: Mapped[str | None] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(10), default="draft")
+    subtotal: Mapped[Decimal] = mapped_column(default=Decimal("0"))
+    tax_total: Mapped[Decimal] = mapped_column(default=Decimal("0"))
+    total: Mapped[Decimal] = mapped_column(default=Decimal("0"))
+    notes: Mapped[str | None] = mapped_column(Text)
+    lost_reason: Mapped[str | None] = mapped_column(String(255))
+    sales_order_id: Mapped[int | None] = mapped_column(ForeignKey("sales_orders.id"), index=True)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+
+    lines: Mapped[list["SalesQuoteLine"]] = relationship(
+        cascade="all, delete-orphan", order_by="SalesQuoteLine.line_no", lazy="selectin"
+    )
+
+
+class SalesQuoteLine(IdMixin, Base):
+    __tablename__ = "sales_quote_lines"
+    __table_args__ = (
+        UniqueConstraint("quote_id", "line_no"),
+        CheckConstraint("quantity > 0 and unit_price >= 0", name="values_valid"),
+        CheckConstraint("discount_pct >= 0 and discount_pct <= 100", name="discount_valid"),
+    )
+
+    quote_id: Mapped[int] = mapped_column(ForeignKey("sales_quotes.id", ondelete="CASCADE"), index=True)
+    line_no: Mapped[int] = mapped_column()
+    item_id: Mapped[int] = mapped_column(ForeignKey("items.id"))
+    description: Mapped[str | None] = mapped_column(String(255))
+    quantity: Mapped[Decimal] = mapped_column(Qty)
+    unit_price: Mapped[Decimal] = mapped_column(UnitCost)
+    discount_pct: Mapped[Decimal] = mapped_column(Qty, default=Decimal("0"))
+    tax_id: Mapped[int | None] = mapped_column(ForeignKey("taxes.id"))
