@@ -1,9 +1,10 @@
 """Identidad, roles, permisos, sesiones y auditoría."""
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -24,6 +25,8 @@ class User(IdMixin, TimestampMixin, Base):
 
     email: Mapped[str] = mapped_column(String(254))
     full_name: Mapped[str] = mapped_column(String(200))
+    job_title: Mapped[str | None] = mapped_column(String(120))
+    phone: Mapped[str | None] = mapped_column(String(40))
     password_hash: Mapped[str | None] = mapped_column(String(255))
     external_subject: Mapped[str | None] = mapped_column(String(255), unique=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -32,8 +35,10 @@ class User(IdMixin, TimestampMixin, Base):
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
 
-    assignments: Mapped[list["UserCompanyRole"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    assignments: Mapped[list["UserCompanyRole"]] = relationship(back_populates="user", cascade="all, delete-orphan",
+                                                                foreign_keys="UserCompanyRole.user_id")
 
 
 class Permission(IdMixin, Base):
@@ -45,12 +50,20 @@ class Permission(IdMixin, Base):
 
 
 class Role(IdMixin, TimestampMixin, Base):
-    __tablename__ = "roles"
+    """Roles del sistema (company_id nulo, comunes a todas las empresas) o propios de una empresa."""
 
-    code: Mapped[str] = mapped_column(String(60), unique=True)
+    __tablename__ = "roles"
+    __table_args__ = (
+        Index("uq_roles_system_code", "code", unique=True, postgresql_where=text("company_id is null")),
+        Index("uq_roles_company_code", "company_id", "code", unique=True,
+              postgresql_where=text("company_id is not null")),
+    )
+
+    code: Mapped[str] = mapped_column(String(60))
     name: Mapped[str] = mapped_column(String(120))
     description: Mapped[str | None] = mapped_column(Text)
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
+    company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id"), index=True)
 
     permissions: Mapped[list[Permission]] = relationship(secondary="role_permissions", lazy="selectin")
 
@@ -63,7 +76,8 @@ class RolePermission(Base):
 
 
 class UserCompanyRole(IdMixin, Base):
-    """Un usuario recibe roles por empresa; opcionalmente restringidos a una sede."""
+    """Un usuario recibe roles por empresa; opcionalmente restringidos a una sede y con vigencia hasta una fecha
+    (reemplazos por vacaciones, auditorías externas, accesos temporales)."""
 
     __tablename__ = "user_company_roles"
     __table_args__ = (UniqueConstraint("user_id", "company_id", "role_id", "site_id"),)
@@ -72,9 +86,16 @@ class UserCompanyRole(IdMixin, Base):
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), index=True)
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"))
     site_id: Mapped[int | None] = mapped_column(ForeignKey("sites.id"))
+    expires_on: Mapped[date | None] = mapped_column(Date)
+    granted_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    granted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    note: Mapped[str | None] = mapped_column(String(255))
 
-    user: Mapped[User] = relationship(back_populates="assignments")
+    user: Mapped[User] = relationship(back_populates="assignments", foreign_keys=[user_id])
     role: Mapped[Role] = relationship(lazy="joined")
+
+    def is_current(self, today: date) -> bool:
+        return self.expires_on is None or self.expires_on >= today
 
 
 class RefreshToken(IdMixin, Base):

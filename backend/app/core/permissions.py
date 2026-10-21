@@ -70,8 +70,42 @@ _RESOURCES: dict[str, dict[str, tuple[str, ...]]] = {
     },
 }
 
+MODULE_LABELS = {
+    "admin": "Administración", "masters": "Datos maestros", "purchasing": "Compras", "inventory": "Inventario",
+    "quality": "Calidad", "sales": "Ventas", "logistics": "Logística", "operations": "Operaciones",
+    "accounting": "Contabilidad", "einvoicing": "Facturación electrónica", "kpi": "Indicadores",
+    "imports": "Importación de datos",
+}
+RESOURCE_LABELS = {
+    "admin.users": "Usuarios", "admin.roles": "Roles y permisos", "admin.audit": "Auditoría",
+    "admin.company": "Empresa, sedes y políticas",
+    "masters.parties": "Terceros", "masters.items": "Artículos", "masters.taxes": "Impuestos",
+    "masters.config": "Parámetros",
+    "purchasing.requisition": "Solicitudes de compra", "purchasing.rfq": "Cotizaciones",
+    "purchasing.order": "Órdenes de compra", "purchasing.receipt": "Recepciones",
+    "purchasing.invoice": "Facturas de proveedor", "purchasing.supplier_eval": "Evaluación de proveedores",
+    "inventory.stock": "Existencias y kardex", "inventory.document": "Movimientos y ajustes",
+    "inventory.count": "Conteos físicos", "inventory.config": "Bodegas y ubicaciones",
+    "quality.plan": "Planes de inspección", "quality.inspection": "Inspecciones",
+    "quality.nonconformity": "No conformidades",
+    "sales.order": "Pedidos de venta",
+    "logistics.dispatch": "Despachos", "logistics.route": "Rutas", "logistics.return": "Devoluciones",
+    "operations.work_order": "Órdenes de trabajo",
+    "accounting.journal": "Comprobantes", "accounting.accounts": "Plan de cuentas",
+    "accounting.period": "Periodos contables", "accounting.reports": "Estados financieros",
+    "accounting.payments": "Cartera y pagos", "accounting.bank": "Bancos", "accounting.budget": "Presupuestos",
+    "einvoicing.invoice": "Facturas electrónicas", "einvoicing.numbering": "Numeración autorizada",
+    "kpi.dashboard": "Tablero", "kpi.config": "Configuración de indicadores", "kpi.alerts": "Alertas",
+    "imports.job": "Cargues de datos", "imports.opening": "Saldos iniciales",
+}
+ACTION_LABELS = {
+    "read": "Consultar", "create": "Crear y editar", "approve": "Aprobar", "post": "Contabilizar / ejecutar",
+    "void": "Anular", "export": "Exportar", "admin": "Administrar",
+}
+
 PERMISSIONS: list[tuple[str, str, str]] = [
-    (f"{module}.{resource}.{action}", module, f"{action} sobre {module}/{resource}")
+    (f"{module}.{resource}.{action}", module,
+     f"{ACTION_LABELS[action]} · {RESOURCE_LABELS.get(f'{module}.{resource}', resource)}")
     for module, resources in _RESOURCES.items()
     for resource, actions in resources.items()
     for action in actions

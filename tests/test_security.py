@@ -105,7 +105,8 @@ def test_approval_limit(env):
 
 def test_password_policy(env):
     r = env.api("admin1").post("/admin/users", {"email": "nuevo@pruebas.datasys.co", "full_name": "Nuevo",
-                                                "password": "corta"}, expect=422)
+                                                "password": "corta", "roles": [{"role_code": "vendedor"}]},
+                               expect=422)
     assert "política" in r.json()["error"]["message"]
 
 

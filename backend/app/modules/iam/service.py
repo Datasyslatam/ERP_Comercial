@@ -121,9 +121,12 @@ def create_user(db: Session, *, email: str, full_name: str, password: str | None
 def change_password(db: Session, user: User, current: str, new: str) -> None:
     if not verify_password(current, user.password_hash):
         raise Unauthorized("Contraseña actual incorrecta")
+    if current == new:
+        raise BusinessRuleViolation("La nueva contraseña debe ser distinta de la actual")
     validate_password_policy(new)
     user.password_hash = hash_password(new)
     user.password_changed_at = datetime.now(UTC)
+    user.must_change_password = False
     db.execute(update(RefreshToken).where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
                .values(revoked_at=datetime.now(UTC)))
     log_action(db, "security", "users", user.id, "Cambio de contraseña")

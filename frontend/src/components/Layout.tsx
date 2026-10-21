@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useSession } from "../lib/session";
+import { ChangePasswordForm } from "../pages/Admin";
+import { Modal } from "./ui";
 import { BrandMark, BuildingIcon, Chevron, LogoutIcon, MenuIcon, SectionIcon } from "./NavIcons";
 
 interface NavItem { to: string; label: string; perm: string; module?: string }
@@ -53,7 +55,8 @@ export const NAV: { section: string; items: NavItem[] }[] = [
   ] },
   { section: "Administración", items: [
     { to: "/importaciones", label: "Importar datos", perm: "imports.job.read" },
-    { to: "/admin/usuarios", label: "Usuarios y roles", perm: "admin.users.read" },
+    { to: "/admin/usuarios", label: "Usuarios", perm: "admin.users.read" },
+    { to: "/admin/roles", label: "Roles y permisos", perm: "admin.roles.read" },
     { to: "/admin/auditoria", label: "Auditoría", perm: "admin.audit.read" },
   ] },
 ];
@@ -90,6 +93,7 @@ export function Layout() {
   const { me, company, selectCompany, logout, can, moduleOn } = useSession();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const page = pageOf(pathname);
   // Una dirección escrita a mano puede apuntar a un módulo desactivado o sin permiso: se avisa en lugar de
   // dejar la pantalla esperando datos que la API rechaza.
@@ -138,13 +142,14 @@ export function Layout() {
           </label>
         )}
         {me && (
-          <div className="user-chip" title={me.email}>
+          <button type="button" className="user-chip" title={me.sso ? me.email : `${me.email} · Cambiar contraseña`}
+                  disabled={me.sso} onClick={() => setChangingPassword(true)}>
             <span className="avatar" aria-hidden="true">{initials(me.full_name)}</span>
             <span className="user-meta hide-sm">
               <strong>{me.full_name}</strong>
               <small>{me.email}</small>
             </span>
-          </div>
+          </button>
         )}
         <button className="logout-btn" onClick={logout} aria-label="Salir" title="Cerrar sesión">
           <LogoutIcon /><span className="hide-sm">Salir</span>
@@ -182,6 +187,9 @@ export function Layout() {
         {!company ? <p className="alert alert-warning">Su usuario no tiene empresas asignadas.</p>
           : blocked ? <p className="alert alert-warning" role="alert">{blocked}</p> : <Outlet />}
       </main>
+      {changingPassword && <Modal title="Cambiar contraseña" onClose={() => setChangingPassword(false)}>
+        <ChangePasswordForm onDone={() => setChangingPassword(false)} />
+      </Modal>}
     </div>
   );
 }

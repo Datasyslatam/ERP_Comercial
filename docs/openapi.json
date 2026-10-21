@@ -162,7 +162,7 @@
      "Autenticación y administración"
     ],
     "summary": "Me",
-    "description": "Perfil, empresas accesibles, permisos efectivos y módulos activos por empresa.",
+    "description": "Perfil, empresas accesibles, permisos efectivos (roles vigentes) y módulos activos por empresa.",
     "operationId": "me_api_v1_auth_me_get",
     "responses": {
      "200": {
@@ -176,13 +176,14 @@
     }
    }
   },
-  "/api/v1/admin/users": {
+  "/api/v1/admin/permissions": {
    "get": {
     "tags": [
      "Autenticación y administración"
     ],
-    "summary": "List Users",
-    "operationId": "list_users_api_v1_admin_users_get",
+    "summary": "Permission Catalog",
+    "description": "Catálogo de permisos agrupado por módulo y recurso (matriz de roles).",
+    "operationId": "permission_catalog_api_v1_admin_permissions_get",
     "parameters": [
      {
       "name": "X-Company-Id",
@@ -201,13 +202,99 @@
       "description": "Successful Response",
       "content": {
        "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
         "schema": {
-         "type": "array",
-         "items": {
-          "$ref": "#/components/schemas/UserOut"
-         },
-         "title": "Response List Users Api V1 Admin Users Get"
+         "$ref": "#/components/schemas/HTTPValidationError"
         }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/users": {
+   "get": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "List Users",
+    "operationId": "list_users_api_v1_admin_users_get",
+    "parameters": [
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 100
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "pattern": "^(active|inactive|locked)$"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "name": "role_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Role Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
        }
       }
      },
@@ -228,6 +315,7 @@
      "Autenticación y administración"
     ],
     "summary": "Create User",
+    "description": "Crea el usuario con sus roles. Si el correo ya existe en otra empresa del grupo, lo vincula a esta.\n\nSin contraseña ni SSO se genera una contraseña temporal que se devuelve una sola vez.",
     "operationId": "create_user_api_v1_admin_users_post",
     "parameters": [
      {
@@ -257,9 +345,118 @@
       "description": "Successful Response",
       "content": {
        "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/UserOut"
+         "$ref": "#/components/schemas/HTTPValidationError"
         }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/users/{user_id}": {
+   "get": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "User Detail",
+    "description": "Ficha del usuario: roles, permisos efectivos, sesiones, accesos, historial y actividad en la empresa.",
+    "operationId": "user_detail_api_v1_admin_users__user_id__get",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "User Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "Update User",
+    "operationId": "update_user_api_v1_admin_users__user_id__patch",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "User Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UserPatchIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
        }
       }
      },
@@ -310,7 +507,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/AssignIn"
+        "$ref": "#/components/schemas/RoleGrantIn"
        }
       }
      }
@@ -320,9 +517,7 @@
       "description": "Successful Response",
       "content": {
        "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/UserOut"
-        }
+        "schema": {}
        }
       }
      },
@@ -394,13 +589,14 @@
     }
    }
   },
-  "/api/v1/admin/users/{user_id}": {
-   "patch": {
+  "/api/v1/admin/users/{user_id}/reset-password": {
+   "post": {
     "tags": [
      "Autenticación y administración"
     ],
-    "summary": "Set Active",
-    "operationId": "set_active_api_v1_admin_users__user_id__patch",
+    "summary": "Reset Password",
+    "description": "Asigna una contraseña temporal (generada si no se indica), cierra sesiones y exige cambio al ingresar.",
+    "operationId": "reset_password_api_v1_admin_users__user_id__reset_password_post",
     "parameters": [
      {
       "name": "user_id",
@@ -428,7 +624,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/ActiveIn"
+        "$ref": "#/components/schemas/ResetPasswordIn"
        }
       }
      }
@@ -438,9 +634,7 @@
       "description": "Successful Response",
       "content": {
        "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/UserOut"
-        }
+        "schema": {}
        }
       }
      },
@@ -457,13 +651,116 @@
     }
    }
   },
-  "/api/v1/admin/roles": {
+  "/api/v1/admin/users/{user_id}/unlock": {
+   "post": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "Unlock",
+    "operationId": "unlock_api_v1_admin_users__user_id__unlock_post",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "User Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/users/{user_id}/revoke-sessions": {
+   "post": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "Revoke Sessions",
+    "operationId": "revoke_sessions_api_v1_admin_users__user_id__revoke_sessions_post",
+    "parameters": [
+     {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "User Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/access-review": {
    "get": {
     "tags": [
      "Autenticación y administración"
     ],
-    "summary": "List Roles",
-    "operationId": "list_roles_api_v1_admin_roles_get",
+    "summary": "Access Review",
+    "description": "Revisión de accesos: una fila por usuario y rol (insumo de la revisión periódica).",
+    "operationId": "access_review_api_v1_admin_access_review_get",
     "parameters": [
      {
       "name": "X-Company-Id",
@@ -499,6 +796,295 @@
     }
    }
   },
+  "/api/v1/admin/access-review/export.csv": {
+   "get": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "Access Review Export",
+    "operationId": "access_review_export_api_v1_admin_access_review_export_csv_get",
+    "parameters": [
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/roles": {
+   "get": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "List Roles",
+    "description": "Roles del sistema y roles propios de la empresa, con permisos y usuarios vigentes.",
+    "operationId": "list_roles_api_v1_admin_roles_get",
+    "parameters": [
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "Create Role",
+    "operationId": "create_role_api_v1_admin_roles_post",
+    "parameters": [
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RoleIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/roles/{role_id}": {
+   "get": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "Role Detail",
+    "operationId": "role_detail_api_v1_admin_roles__role_id__get",
+    "parameters": [
+     {
+      "name": "role_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Role Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "Update Role",
+    "operationId": "update_role_api_v1_admin_roles__role_id__patch",
+    "parameters": [
+     {
+      "name": "role_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Role Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RolePatchIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "Delete Role",
+    "operationId": "delete_role_api_v1_admin_roles__role_id__delete",
+    "parameters": [
+     {
+      "name": "role_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Role Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/audit": {
    "get": {
     "tags": [
@@ -506,6 +1092,184 @@
     ],
     "summary": "Audit Log",
     "operationId": "audit_log_api_v1_admin_audit_get",
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 1000,
+       "default": 100,
+       "title": "Limit"
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "default": 0,
+       "title": "Offset"
+      }
+     },
+     {
+      "name": "entity_type",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Entity Type"
+      }
+     },
+     {
+      "name": "entity_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Entity Id"
+      }
+     },
+     {
+      "name": "user_id",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "User Id"
+      }
+     },
+     {
+      "name": "action",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Action"
+      }
+     },
+     {
+      "name": "date_from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date From"
+      }
+     },
+     {
+      "name": "date_to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date To"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 100
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/audit/export.csv": {
+   "get": {
+    "tags": [
+     "Autenticación y administración"
+    ],
+    "summary": "Audit Export",
+    "operationId": "audit_export_api_v1_admin_audit_export_csv_get",
     "parameters": [
      {
       "name": "entity_type",
@@ -572,24 +1336,54 @@
       }
      },
      {
-      "name": "limit",
+      "name": "date_from",
       "in": "query",
       "required": false,
       "schema": {
-       "type": "integer",
-       "maximum": 1000,
-       "default": 100,
-       "title": "Limit"
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date From"
       }
      },
      {
-      "name": "offset",
+      "name": "date_to",
       "in": "query",
       "required": false,
       "schema": {
-       "type": "integer",
-       "default": 0,
-       "title": "Offset"
+       "anyOf": [
+        {
+         "type": "string",
+         "format": "date"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date To"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 100
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
       }
      },
      {
@@ -644,6 +1438,39 @@
        "maximum": 1000,
        "default": 100,
        "title": "Limit"
+      }
+     },
+     {
+      "name": "success",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Success"
+      }
+     },
+     {
+      "name": "email",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 254
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Email"
       }
      },
      {
@@ -16919,19 +17746,6 @@
     ],
     "title": "ActionStatusIn"
    },
-   "ActiveIn": {
-    "properties": {
-     "is_active": {
-      "type": "boolean",
-      "title": "Is Active"
-     }
-    },
-    "type": "object",
-    "required": [
-     "is_active"
-    ],
-    "title": "ActiveIn"
-   },
    "AllocationIn": {
     "properties": {
      "open_item_id": {
@@ -16989,30 +17803,6 @@
      "max_amount"
     ],
     "title": "ApprovalLimitIn"
-   },
-   "AssignIn": {
-    "properties": {
-     "role_code": {
-      "type": "string",
-      "title": "Role Code"
-     },
-     "site_id": {
-      "anyOf": [
-       {
-        "type": "integer"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Site Id"
-     }
-    },
-    "type": "object",
-    "required": [
-     "role_code"
-    ],
-    "title": "AssignIn"
    },
    "AwardIn": {
     "properties": {
@@ -23541,6 +24331,24 @@
     ],
     "title": "RequisitionIn"
    },
+   "ResetPasswordIn": {
+    "properties": {
+     "new_password": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "New Password"
+     }
+    },
+    "type": "object",
+    "title": "ResetPasswordIn"
+   },
    "ResolveIn": {
     "properties": {
      "resolution": {
@@ -23755,6 +24563,156 @@
      "requisition_id"
     ],
     "title": "RfqIn"
+   },
+   "RoleGrantIn": {
+    "properties": {
+     "role_code": {
+      "type": "string",
+      "maxLength": 60,
+      "minLength": 1,
+      "title": "Role Code"
+     },
+     "site_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Site Id"
+     },
+     "expires_on": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expires On"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 255
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "role_code"
+    ],
+    "title": "RoleGrantIn"
+   },
+   "RoleIn": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 60,
+      "minLength": 2,
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$",
+      "title": "Code"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 2,
+      "title": "Name"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 1000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "permissions": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "maxItems": 114,
+      "title": "Permissions"
+     },
+     "copy_from_role_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Copy From Role Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "name"
+    ],
+    "title": "RoleIn"
+   },
+   "RolePatchIn": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120,
+        "minLength": 2
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 1000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "permissions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array",
+        "maxItems": 114
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Permissions"
+     }
+    },
+    "type": "object",
+    "title": "RolePatchIn"
    },
    "RowPatch": {
     "properties": {
@@ -25468,6 +26426,30 @@
       "minLength": 2,
       "title": "Full Name"
      },
+     "job_title": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Job Title"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     },
      "password": {
       "anyOf": [
        {
@@ -25491,6 +26473,14 @@
        }
       ],
       "title": "External Subject"
+     },
+     "roles": {
+      "items": {
+       "$ref": "#/components/schemas/RoleGrantIn"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Roles"
      }
     },
     "type": "object",
@@ -25500,59 +26490,71 @@
     ],
     "title": "UserCreateIn"
    },
-   "UserOut": {
+   "UserPatchIn": {
     "properties": {
-     "id": {
-      "type": "integer",
-      "title": "Id"
-     },
      "email": {
-      "type": "string",
-      "title": "Email"
-     },
-     "full_name": {
-      "type": "string",
-      "title": "Full Name"
-     },
-     "is_active": {
-      "type": "boolean",
-      "title": "Is Active"
-     },
-     "is_superadmin": {
-      "type": "boolean",
-      "title": "Is Superadmin"
-     },
-     "last_login_at": {
       "anyOf": [
        {
         "type": "string",
-        "format": "date-time"
+        "format": "email"
        },
        {
         "type": "null"
        }
       ],
-      "title": "Last Login At"
+      "title": "Email"
      },
-     "roles": {
-      "items": {
-       "type": "object"
-      },
-      "type": "array",
-      "title": "Roles",
-      "default": []
+     "full_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 2
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Full Name"
+     },
+     "job_title": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Job Title"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     },
+     "is_active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Active"
      }
     },
     "type": "object",
-    "required": [
-     "id",
-     "email",
-     "full_name",
-     "is_active",
-     "is_superadmin",
-     "last_login_at"
-    ],
-    "title": "UserOut"
+    "title": "UserPatchIn"
    },
    "ValidationError": {
     "properties": {

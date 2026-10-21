@@ -186,8 +186,8 @@ tr.clickable { cursor: pointer; } tr.clickable:hover { background: var(--accent-
 }
 .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .85; }
 .badge-ok, .badge-accepted, .badge-approved, .badge-posted, .badge-delivered, .badge-received, .badge-released, .badge-imported, .badge-closed, .badge-paid, .badge-issued, .badge-valid, .badge-active { background: var(--ok-bg); color: var(--ok); }
-.badge-warning, .badge-pending, .badge-submitted, .badge-partial, .badge-partially_received, .badge-partially_imported, .badge-quarantine, .badge-picking, .badge-in_progress, .badge-acknowledged { background: var(--warn-bg); color: var(--warn); }
-.badge-critical, .badge-rejected, .badge-error, .badge-blocked, .badge-failed, .badge-invalid, .badge-cancelled, .badge-inactive { background: var(--crit-bg); color: var(--crit); }
+.badge-warning, .badge-pending, .badge-expired, .badge-pending_password, .badge-submitted, .badge-partial, .badge-partially_received, .badge-partially_imported, .badge-quarantine, .badge-picking, .badge-in_progress, .badge-acknowledged { background: var(--warn-bg); color: var(--warn); }
+.badge-critical, .badge-locked, .badge-rejected, .badge-error, .badge-blocked, .badge-failed, .badge-invalid, .badge-cancelled, .badge-inactive { background: var(--crit-bg); color: var(--crit); }
 
 .alert { padding: .7rem .9rem; border-radius: 8px; margin: .5rem 0; border: 1px solid transparent; border-left-width: 4px; line-height: 1.4; }
 .alert-error { background: var(--crit-bg); color: var(--crit); border-left-color: var(--crit); }
@@ -316,3 +316,24 @@ tr.clickable { cursor: pointer; } tr.clickable:hover { background: var(--accent-
 @media (max-width: 480px) {
   .brand-text { display: none; }
 }
+
+/* Administración: pestañas, etiquetas de rol, matriz de permisos y secretos de un solo uso */
+.tabs { display: flex; gap: .25rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin: 1rem 0; }
+.tabs .tab { background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; box-shadow: none; padding: .55rem .8rem; font-weight: 600; }
+.tabs .tab:hover { color: var(--text); background: var(--surface-2); }
+.tabs .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.chips { display: inline-flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+.chip { display: inline-flex; padding: .12rem .5rem; border-radius: 6px; font-size: .75rem; background: var(--accent-soft); color: var(--text); border: 1px solid var(--border); white-space: nowrap; }
+.chip-off { opacity: .55; text-decoration: line-through; }
+.perm-matrix th.c, .perm-matrix td.c { text-align: center; width: 84px; }
+.perm-matrix .perm-module td { background: var(--surface-2); }
+.perm-matrix .perm-module label { display: flex; flex-direction: row; gap: .5rem; align-items: center; }
+.perm-matrix .perm-resource { padding-left: 1.6rem; }
+.sticky-actions { position: sticky; top: 0; z-index: 2; background: var(--surface); padding: .5rem 0; }
+.perm-group { border: 1px solid var(--border); border-radius: 8px; padding: .5rem .8rem; margin-bottom: .5rem; background: var(--surface); }
+.perm-group summary { cursor: pointer; font-weight: 600; }
+.perm-group ul { margin: .5rem 0 0; padding-left: 1.2rem; line-height: 1.6; }
+.secret code { font-size: 1rem; padding: .3rem .6rem; background: var(--surface); border-radius: 6px; user-select: all; }
+button.user-chip { color: inherit; box-shadow: none; padding: 0 .75rem 0 .25rem; font-weight: inherit; text-align: left; justify-content: flex-start; }
+button.user-chip:hover { border-color: rgba(0, 180, 216, .55); background: rgba(0, 180, 216, .1); }
+button.user-chip:disabled { opacity: 1; cursor: default; background: rgba(255, 255, 255, .05); }
