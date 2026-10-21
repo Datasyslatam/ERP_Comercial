@@ -11,6 +11,7 @@ erDiagram
     }
     roles {
         VARCHAR code
+        BIGINT company_id FK
         BIGINT id PK
     }
     permissions {
@@ -26,6 +27,7 @@ erDiagram
         BIGINT company_id FK
         BIGINT role_id FK
         BIGINT site_id FK
+        BIGINT granted_by_id FK
         BIGINT id PK
     }
     refresh_tokens {
@@ -53,10 +55,11 @@ erDiagram
     users ||--o{ audit_log : "user_id"
     users ||--o{ login_attempts : "user_id"
     users ||--o{ refresh_tokens : "user_id"
+    users ||--o{ user_company_roles : "granted_by_id"
     users ||--o{ user_company_roles : "user_id"
 ```
 
-Relaciones con otros dominios: `approval_limits` → companies; `audit_log` → companies; `user_company_roles` → companies, sites.
+Relaciones con otros dominios: `approval_limits` → companies; `audit_log` → companies; `roles` → companies; `user_company_roles` → companies, sites.
 
 ## Organización y configuración
 

@@ -59,7 +59,7 @@ def cmd_create_admin(args):
                            is_superadmin=args.superadmin)
         if args.company:
             c = _company(db, args.company)
-            role = db.scalar(select(Role).where(Role.code == "admin"))
+            role = db.scalar(select(Role).where(Role.code == "admin", Role.company_id.is_(None)))
             db.add(UserCompanyRole(user_id=user.id, company_id=c.id, role_id=role.id))
         db.commit()
         print(f"Usuario creado id={user.id}")

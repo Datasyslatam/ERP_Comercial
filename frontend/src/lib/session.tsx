@@ -15,7 +15,10 @@ export interface Me {
   id: number;
   email: string;
   full_name: string;
+  job_title?: string | null;
   is_superadmin: boolean;
+  must_change_password?: boolean;
+  sso?: boolean;
   companies: Company[];
 }
 
@@ -25,6 +28,7 @@ interface SessionValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refresh: () => Promise<void>;
   selectCompany: (id: number) => void;
   can: (perm: string) => boolean;
   moduleOn: (module: string) => boolean;
@@ -69,6 +73,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setMe(null);
       setCompanyState(null);
     },
+    refresh: load,
     selectCompany: (id) => {
       const c = me?.companies.find((x) => x.id === id) ?? null;
       setCompany(c?.id ?? null);

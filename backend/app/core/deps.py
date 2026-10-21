@@ -1,5 +1,6 @@
 """Dependencias de FastAPI: autenticación, contexto de empresa y autorización por permiso."""
 from dataclasses import dataclass, field
+from datetime import date
 
 from fastapi import Depends, Header, Request
 from sqlalchemy import select
@@ -61,20 +62,27 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     return user
 
 
+def current_assignments(db: Session, user_id: int, company_id: int) -> list[UserCompanyRole]:
+    """Asignaciones vigentes (no vencidas) del usuario en la empresa."""
+    return list(db.scalars(select(UserCompanyRole).where(
+        UserCompanyRole.user_id == user_id, UserCompanyRole.company_id == company_id,
+        (UserCompanyRole.expires_on.is_(None)) | (UserCompanyRole.expires_on >= date.today()))).all())
+
+
 def get_principal(
     x_company_id: int = Header(..., alias="X-Company-Id", description="Empresa sobre la que se opera"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Principal:
+    if user.must_change_password:
+        raise Forbidden("Debe cambiar su contraseña antes de continuar", details={"must_change_password": True})
     company = db.get(Company, x_company_id)
     if company is None or not company.is_active:
         raise Forbidden("Empresa inexistente o inactiva")
     if user.is_superadmin:
         update_context(company_id=company.id)
         return Principal(user=user, company=company, permissions=set(ALL_CODES))
-    assignments = db.scalars(
-        select(UserCompanyRole).where(UserCompanyRole.user_id == user.id, UserCompanyRole.company_id == company.id)
-    ).all()
+    assignments = current_assignments(db, user.id, company.id)
     if not assignments:
         raise Forbidden("No tiene acceso a esta empresa")
     perms: set[str] = set()

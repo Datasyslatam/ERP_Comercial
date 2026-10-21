@@ -36,6 +36,7 @@ export const STATUS_LABELS: Record<string, string> = {
   ok: "En meta", warning: "Alerta", critical: "Crítico", no_target: "Sin meta", no_data: "Sin datos",
   validated: "Validado", imported: "Importado", partially_imported: "Importado parcial", failed: "Fallido",
   valid: "Válida", invalid: "Inválida", acknowledged: "Atendida", active: "Activo", inactive: "Inactivo",
+  locked: "Bloqueado", expired: "Vencido", pending_password: "Cambio de clave pendiente",
 };
 
 export const label = (s: unknown) => STATUS_LABELS[String(s)] ?? String(s ?? "—");

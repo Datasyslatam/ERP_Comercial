@@ -5,7 +5,8 @@ import { Dashboard } from "./pages/Dashboard";
 import { CountsPage, InventoryDocumentsPage, StockPage } from "./pages/Inventory";
 import { Login } from "./pages/Login";
 import { AccountsPage, ItemsPage, NumberingPage, PartiesPage, TaxesPage, WarehousesPage } from "./pages/Masters";
-import { AuditPage, ImportsPage, UsersPage, WorkOrdersPage } from "./pages/Other";
+import { AuditPage, ChangePasswordForm, RolesPage, UsersPage } from "./pages/Admin";
+import { ImportsPage, WorkOrdersPage } from "./pages/Other";
 import { OrderDetailPage, OrdersPage, RequisitionsPage, SupplierInvoicesPage } from "./pages/Purchasing";
 import { InspectionsPage, NonConformitiesPage } from "./pages/Quality";
 import { DispatchesPage, SalesOrdersPage } from "./pages/Sales";
@@ -18,6 +19,7 @@ function Routed() {
   const { me, loading } = useSession();
   if (loading) return <p className="muted center">Cargando…</p>;
   if (!me) return <Login />;
+  if (me.must_change_password) return <ForcedPasswordChange />;
   return (
     <Routes>
       <Route element={<Layout />}>
@@ -63,10 +65,28 @@ function Routed() {
         <Route path="maestros/numeracion" element={<NumberingPage />} />
         <Route path="importaciones" element={<ImportsPage />} />
         <Route path="admin/usuarios" element={<UsersPage />} />
+        <Route path="admin/roles" element={<RolesPage />} />
         <Route path="admin/auditoria" element={<AuditPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+  );
+}
+
+/** Contraseña asignada por un administrador: se exige cambiarla antes de usar el ERP. */
+function ForcedPasswordChange() {
+  const { me, logout } = useSession();
+  return (
+    <div className="login">
+      <main className="login-main">
+        <div className="login-card">
+          <h1>Cambie su contraseña</h1>
+          <p className="muted">{me?.full_name} · {me?.email}</p>
+          <ChangePasswordForm forced onDone={() => undefined} />
+          <button className="secondary" onClick={logout}>Salir</button>
+        </div>
+      </main>
+    </div>
   );
 }
 

@@ -11,8 +11,9 @@ from app.core.audit import log_action
 from app.core.crud import crud_router, get_owned
 from app.core.db import get_db
 from app.core.deps import Principal, require
-from app.core.errors import BusinessRuleViolation, NotFound
+from app.core.errors import BusinessRuleViolation
 from app.modules.accounting.models import POSTING_KEYS, Account, BankAccount, PostingAccount
+from app.modules.iam.admin import get_role
 from app.modules.iam.models import ApprovalLimit, Role
 from app.modules.inventory.models import Location, Warehouse
 from app.modules.logistics.models import DeliveryRoute
@@ -286,9 +287,7 @@ def list_limits(p: Principal = Depends(require("admin.company.read")), db: Sessi
 @router.put("/approval-limits", tags=["Empresa"])
 def set_limit(body: ApprovalLimitIn, p: Principal = Depends(require("admin.company.admin")),
               db: Session = Depends(get_db)):
-    role = db.scalar(select(Role).where(Role.code == body.role_code))
-    if role is None:
-        raise NotFound("Rol inexistente")
+    role = get_role(db, p.company_id, code=body.role_code)
     row = db.scalar(select(ApprovalLimit).where(ApprovalLimit.company_id == p.company_id,
                                                 ApprovalLimit.role_id == role.id,
                                                 ApprovalLimit.document_type == body.document_type))

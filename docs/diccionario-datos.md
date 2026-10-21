@@ -10,6 +10,8 @@ Generado automáticamente desde los modelos SQLAlchemy (`python -m app.tools.gen
 |---|---|---|---|---|
 | `email` | VARCHAR(254) | no |  |  |
 | `full_name` | VARCHAR(200) | no |  |  |
+| `job_title` | VARCHAR(120) | sí |  |  |
+| `phone` | VARCHAR(40) | sí |  |  |
 | `password_hash` | VARCHAR(255) | sí |  |  |
 | `external_subject` | VARCHAR(255) | sí |  |  |
 | `is_active` | BOOLEAN | no | True |  |
@@ -18,6 +20,7 @@ Generado automáticamente desde los modelos SQLAlchemy (`python -m app.tools.gen
 | `locked_until` | DATETIME | sí |  |  |
 | `last_login_at` | DATETIME | sí |  |  |
 | `password_changed_at` | DATETIME | sí |  |  |
+| `must_change_password` | BOOLEAN | no | false |  |
 | `id` (PK) | BIGINT | no |  |  |
 | `created_at` | DATETIME | no | now() |  |
 | `updated_at` | DATETIME | no | now() |  |
@@ -27,17 +30,22 @@ Generado automáticamente desde los modelos SQLAlchemy (`python -m app.tools.gen
 
 ### `roles`
 
+Roles del sistema (company_id nulo, comunes a todas las empresas) o propios de una empresa.
+
 | Columna | Tipo | Nulo | Por defecto | Referencia |
 |---|---|---|---|---|
 | `code` | VARCHAR(60) | no |  |  |
 | `name` | VARCHAR(120) | no |  |  |
 | `description` | TEXT | sí |  |  |
 | `is_system` | BOOLEAN | no | False |  |
+| `company_id` | BIGINT | sí |  | companies.id |
 | `id` (PK) | BIGINT | no |  |  |
 | `created_at` | DATETIME | no | now() |  |
 | `updated_at` | DATETIME | no | now() |  |
 
-- Única: (code)
+- Índice `ix_roles_company_id`: (roles.company_id)
+- Índice único `uq_roles_company_code`: (roles.company_id, roles.code)
+- Índice único `uq_roles_system_code`: (roles.code)
 
 ### `permissions`
 
@@ -59,7 +67,7 @@ Generado automáticamente desde los modelos SQLAlchemy (`python -m app.tools.gen
 
 ### `user_company_roles`
 
-Un usuario recibe roles por empresa; opcionalmente restringidos a una sede.
+Un usuario recibe roles por empresa; opcionalmente restringidos a una sede y con vigencia hasta una fecha (reemplazos por vacaciones, auditorías externas, accesos temporales).
 
 | Columna | Tipo | Nulo | Por defecto | Referencia |
 |---|---|---|---|---|
@@ -67,6 +75,10 @@ Un usuario recibe roles por empresa; opcionalmente restringidos a una sede.
 | `company_id` | BIGINT | no |  | companies.id |
 | `role_id` | BIGINT | no |  | roles.id |
 | `site_id` | BIGINT | sí |  | sites.id |
+| `expires_on` | DATE | sí |  |  |
+| `granted_by_id` | BIGINT | sí |  | users.id |
+| `granted_at` | DATETIME | sí | now() |  |
+| `note` | VARCHAR(255) | sí |  |  |
 | `id` (PK) | BIGINT | no |  |  |
 
 - Única: (user_id, company_id, role_id, site_id)
@@ -412,9 +424,9 @@ Retenciones aplicables: en compras las practicamos al proveedor; en ventas nos l
 
 - Única: (company_id, sku)
 - Índice `ix_items_company_id`: (items.company_id)
-- Verificación `ck_items_service_not_stocked`: `not (item_type = 'service' and is_stocked)`
 - Verificación `ck_items_type_valid`: `item_type in ('raw_material','supply','wip','finished_good','merchandise','service')`
 - Verificación `ck_items_minmax_nonneg`: `min_stock >= 0 and max_stock >= 0`
+- Verificación `ck_items_service_not_stocked`: `not (item_type = 'service' and is_stocked)`
 
 ### `item_categories`
 
@@ -485,9 +497,9 @@ Impuesto o retención parametrizable. Las tarifas deben validarse con el asesor 
 
 - Única: (company_id, code)
 - Índice `ix_taxes_company_id`: (taxes.company_id)
+- Verificación `ck_taxes_applies_valid`: `applies_to in ('sales','purchases','both')`
 - Verificación `ck_taxes_rate_range`: `rate >= 0 and rate <= 100`
 - Verificación `ck_taxes_base_valid`: `base in ('subtotal','vat')`
-- Verificación `ck_taxes_applies_valid`: `applies_to in ('sales','purchases','both')`
 
 ### `payment_terms`
 
@@ -654,8 +666,8 @@ Impuesto o retención parametrizable. Las tarifas deben validarse con el asesor 
 - Única: (purchase_order_id, line_no)
 - Índice `ix_purchase_order_lines_item_id`: (purchase_order_lines.item_id)
 - Índice `ix_purchase_order_lines_purchase_order_id`: (purchase_order_lines.purchase_order_id)
-- Verificación `ck_purchase_order_lines_progress_nonneg`: `qty_received >= 0 and qty_invoiced >= 0 and qty_rejected >= 0`
 - Verificación `ck_purchase_order_lines_values_valid`: `quantity > 0 and unit_price >= 0`
+- Verificación `ck_purchase_order_lines_progress_nonneg`: `qty_received >= 0 and qty_invoiced >= 0 and qty_rejected >= 0`
 
 ### `goods_receipts`
 
@@ -732,8 +744,8 @@ Impuesto o retención parametrizable. Las tarifas deben validarse con el asesor 
 | `created_at` | DATETIME | no | now() |  |
 | `updated_at` | DATETIME | no | now() |  |
 
-- Única: (company_id, number)
 - Única: (company_id, supplier_id, supplier_invoice_number)
+- Única: (company_id, number)
 - Índice `ix_supplier_invoices_company_id`: (supplier_invoices.company_id)
 - Índice `ix_supplier_invoices_supplier_id`: (supplier_invoices.supplier_id)
 - Verificación `ck_supplier_invoices_status_valid`: `status in ('draft','posted','cancelled')`
@@ -848,8 +860,8 @@ Impuesto o retención parametrizable. Las tarifas deben validarse con el asesor 
 - Índice `ix_stock_balances_item_id`: (stock_balances.item_id)
 - Índice `ix_stock_balances_location_id`: (stock_balances.location_id)
 - Índice único `uq_stock_balance_key`: (stock_balances.item_id, stock_balances.location_id, coalesce(lot_id, :coalesce_1))
-- Verificación `ck_stock_balances_reserved_within_onhand`: `qty_reserved >= 0 and qty_reserved <= qty_on_hand`
 - Verificación `ck_stock_balances_no_negative_stock`: `qty_on_hand >= 0`
+- Verificación `ck_stock_balances_reserved_within_onhand`: `qty_reserved >= 0 and qty_reserved <= qty_on_hand`
 
 ### `item_costs`
 
@@ -863,8 +875,8 @@ Costo promedio ponderado perpetuo por empresa y artículo.
 | `qty_total` | NUMERIC(18, 6) | no | 0 |  |
 | `updated_at` | DATETIME | no | now() |  |
 
-- Verificación `ck_item_costs_qty_nonneg`: `qty_total >= 0`
 - Verificación `ck_item_costs_cost_nonneg`: `avg_cost >= 0`
+- Verificación `ck_item_costs_qty_nonneg`: `qty_total >= 0`
 
 ### `stock_moves`
 
@@ -917,8 +929,8 @@ Movimiento de inventario inmutable. Todo movimiento tiene fecha, responsable, mo
 - Índice `ix_reservations_source`: (stock_reservations.source_type, stock_reservations.source_line_id)
 - Índice `ix_stock_reservations_company_id`: (stock_reservations.company_id)
 - Verificación `ck_stock_reservations_consumed_within`: `quantity_consumed >= 0 and quantity_consumed <= quantity`
-- Verificación `ck_stock_reservations_qty_positive`: `quantity > 0`
 - Verificación `ck_stock_reservations_status_valid`: `status in ('active','consumed','released')`
+- Verificación `ck_stock_reservations_qty_positive`: `quantity > 0`
 
 ### `inventory_documents`
 
@@ -1116,9 +1128,9 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 - Índice `ix_nonconformities_company_id`: (nonconformities.company_id)
 - Índice `ix_nonconformities_item_id`: (nonconformities.item_id)
 - Índice `ix_nonconformities_supplier_id`: (nonconformities.supplier_id)
-- Verificación `ck_nonconformities_severity_valid`: `severity in ('minor','major','critical')`
 - Verificación `ck_nonconformities_source_valid`: `source in ('inspection','customer','internal','supplier','delivery','production')`
 - Verificación `ck_nonconformities_status_valid`: `status in ('open','analysis','action','verification','closed')`
+- Verificación `ck_nonconformities_severity_valid`: `severity in ('minor','major','critical')`
 
 ### `capa_actions`
 
@@ -1193,9 +1205,9 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 - Única: (sales_order_id, line_no)
 - Índice `ix_sales_order_lines_item_id`: (sales_order_lines.item_id)
 - Índice `ix_sales_order_lines_sales_order_id`: (sales_order_lines.sales_order_id)
+- Verificación `ck_sales_order_lines_discount_valid`: `discount_pct >= 0 and discount_pct <= 100`
 - Verificación `ck_sales_order_lines_dispatch_within_qty`: `qty_dispatched <= quantity`
 - Verificación `ck_sales_order_lines_values_valid`: `quantity > 0 and unit_price >= 0`
-- Verificación `ck_sales_order_lines_discount_valid`: `discount_pct >= 0 and discount_pct <= 100`
 
 ### `delivery_routes`
 
@@ -1250,8 +1262,8 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 - Índice `ix_dispatch_orders_company_id`: (dispatch_orders.company_id)
 - Índice `ix_dispatch_orders_customer_id`: (dispatch_orders.customer_id)
 - Índice `ix_dispatch_orders_sales_order_id`: (dispatch_orders.sales_order_id)
-- Verificación `ck_dispatch_orders_status_valid`: `status in ('draft','picking','picked','packed','shipped','delivered','partially_delivered','cancelled')`
 - Verificación `ck_dispatch_orders_freight_nonneg`: `freight_cost >= 0`
+- Verificación `ck_dispatch_orders_status_valid`: `status in ('draft','picking','picked','packed','shipped','delivered','partially_delivered','cancelled')`
 
 ### `dispatch_lines`
 
@@ -1271,11 +1283,11 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 
 - Índice `ix_dispatch_lines_dispatch_id`: (dispatch_lines.dispatch_id)
 - Índice `ix_dispatch_lines_so_line_id`: (dispatch_lines.so_line_id)
-- Verificación `ck_dispatch_lines_shipped_within_picked`: `qty_shipped <= qty_picked`
 - Verificación `ck_dispatch_lines_picked_within_requested`: `qty_picked <= qty_requested`
-- Verificación `ck_dispatch_lines_qty_positive`: `qty_requested > 0`
 - Verificación `ck_dispatch_lines_delivered_within_shipped`: `qty_delivered <= qty_shipped`
+- Verificación `ck_dispatch_lines_qty_positive`: `qty_requested > 0`
 - Verificación `ck_dispatch_lines_returned_within_shipped`: `qty_returned <= qty_shipped`
+- Verificación `ck_dispatch_lines_shipped_within_picked`: `qty_shipped <= qty_picked`
 
 ### `shipment_events`
 
@@ -1309,8 +1321,8 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 
 - Índice `ix_delivery_incidents_company_id`: (delivery_incidents.company_id)
 - Índice `ix_delivery_incidents_dispatch_id`: (delivery_incidents.dispatch_id)
-- Verificación `ck_delivery_incidents_status_valid`: `status in ('open','resolved')`
 - Verificación `ck_delivery_incidents_type_valid`: `incident_type in ('damaged','missing','late','rejected','address','other')`
+- Verificación `ck_delivery_incidents_status_valid`: `status in ('open','resolved')`
 
 ### `customer_returns`
 
@@ -1419,9 +1431,9 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 
 - Única: (company_id, number)
 - Índice `ix_work_orders_company_id`: (work_orders.company_id)
-- Verificación `ck_work_orders_qty_nonneg`: `planned_qty >= 0 and produced_qty >= 0 and scrap_qty >= 0 and rework_qty >= 0`
-- Verificación `ck_work_orders_type_valid`: `wo_type in ('production','service','maintenance')`
 - Verificación `ck_work_orders_status_valid`: `status in ('draft','released','in_progress','completed','closed','cancelled')`
+- Verificación `ck_work_orders_type_valid`: `wo_type in ('production','service','maintenance')`
+- Verificación `ck_work_orders_qty_nonneg`: `planned_qty >= 0 and produced_qty >= 0 and scrap_qty >= 0 and rework_qty >= 0`
 
 ### `work_order_materials`
 

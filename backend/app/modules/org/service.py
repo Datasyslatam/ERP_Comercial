@@ -25,9 +25,11 @@ def sync_reference_data(db: Session) -> None:
         if code not in perms:
             perms[code] = Permission(code=code, module=module, description=desc)
             db.add(perms[code])
+        elif perms[code].description != desc:
+            perms[code].description = desc
     db.flush()
     for code, (name, codes) in ROLES.items():
-        role = db.scalar(select(Role).where(Role.code == code))
+        role = db.scalar(select(Role).where(Role.code == code, Role.company_id.is_(None)))
         if role is None:
             role = Role(code=code, name=name, is_system=True)
             db.add(role)
