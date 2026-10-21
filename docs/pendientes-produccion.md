@@ -1,7 +1,8 @@
 # Requisitos pendientes para producción
 
 Estado honesto de lo que **falta** antes de operar con validez fiscal y datos reales. Nada de lo listado se
-declara terminado en el código.
+declara terminado en el código. Última revisión: 21/10/2026 (tras usuarios y roles, trazabilidad entre módulos,
+funcionalidad por módulo y documentos comerciales en PDF con envío por correo).
 
 ## Bloqueantes (legales / fiscales)
 
@@ -21,19 +22,21 @@ declara terminado en el código.
 |---|---|
 | 8 | Devolución de dinero a clientes cuando la nota crédito supera el saldo de la factura (hoy se bloquea). |
 | 9 | Retenciones al pagar (en vez de al facturar) y retenciones de IVA en compras de Venezuela por comprobante. |
-| 10 | Representación gráfica PDF de facturas y comprobantes; envío por correo. |
-| 11 | Precios por lista/cliente, promociones y cotizaciones de venta. |
+| 10 | ~~PDF y envío por correo~~ — **implementado** para cotización, pedido, orden de compra y factura / notas (cola con reintentos y bitácora). Falta: código QR y representación gráfica oficial exigida por el proveedor tecnológico (depende del #1), PDF de comprobantes de egreso y recibos de caja, y adjuntar el XML firmado al correo de la factura. |
+| 11 | ~~Cotizaciones de venta~~ — **implementadas** (vigencia, pérdida con motivo, conversión a pedido). Falta: listas de precios por cliente o canal, descuentos por volumen y promociones. |
 | 12 | Planeación de producción (MRP) y capacidad por centro de trabajo; hoy la planificación es por orden. |
 | 13 | Flujo de efectivo indirecto y clasificación de actividades de inversión/financiación por cuenta. |
 | 14 | Diferencia en cambio no realizada (reexpresión de saldos en divisas al cierre). |
-| 15 | Importación de extractos bancarios desde archivo (hoy por API JSON). |
-| 16 | ~~Pantallas para retenciones en recaudos, notas crédito/débito, listas de materiales, rutas y plan de entregas, devoluciones e incidencias~~ — **implementadas**. Quedan solo por API: conciliación bancaria (importar extracto y cruce manual), límites de aprobación, metas por sede y adjuntos. |
+| 15 | Extractos bancarios: hoy se cargan pegando los movimientos en pantalla. Falta leer los archivos propios de cada banco (CSV/Excel/OFX) con su formato. |
+| 16 | ~~Pantallas para retenciones, notas, listas de materiales, rutas, devoluciones, incidencias, conciliación bancaria y límites de aprobación~~ — **implementadas**. Quedan solo por API: metas por sede y la carga de adjuntos desde las pantallas de documentos. |
+| 29 | Gestión de documentos comerciales: anulación de cotizaciones, edición de pedidos y órdenes en borrador (hoy se anulan y se crean de nuevo). |
 
 ## Técnicos y de seguridad
 
 | # | Pendiente |
 |---|---|
-| 17 | Construir y probar las imágenes Docker y el `docker compose up` completo (no ejecutado en esta fase; cubierto por el CI). |
+| 17 | ~~Construir las imágenes Docker~~ — el CI las construye en cada cambio. Falta probar el `docker compose up` completo. |
+| 30 | Configurar el correo saliente en Railway: `EMAIL_BACKEND=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` (dominio con SPF/DKIM para no caer en spam). Sin esto el envío se rechaza fuera de desarrollo. El worker (`RUN_WORKER=1`) debe estar activo para entregar los correos. |
 | 18 | Cifrado en reposo de campos sensibles (clave técnica de numeración, credenciales del proveedor) con KMS / gestor de secretos; hoy se apoya en cifrado de disco del proveedor. |
 | 19 | Almacenamiento de adjuntos en S3 compatible (necesario en Railway con API y worker separados). |
 | 20 | Límite de solicitudes distribuido (Redis o proxy/WAF) cuando haya varias réplicas de la API. |

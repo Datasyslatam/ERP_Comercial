@@ -185,7 +185,7 @@ tr.clickable { cursor: pointer; } tr.clickable:hover { background: var(--accent-
   font-size: .72rem; font-weight: 600; background: var(--neutral-bg); color: var(--muted); white-space: nowrap;
 }
 .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .85; }
-.badge-ok, .badge-accepted, .badge-approved, .badge-posted, .badge-delivered, .badge-received, .badge-released, .badge-imported, .badge-closed, .badge-paid, .badge-issued, .badge-valid, .badge-active { background: var(--ok-bg); color: var(--ok); }
+.badge-ok, .badge-sent, .badge-accepted, .badge-approved, .badge-posted, .badge-delivered, .badge-received, .badge-released, .badge-imported, .badge-closed, .badge-paid, .badge-issued, .badge-valid, .badge-active { background: var(--ok-bg); color: var(--ok); }
 .badge-warning, .badge-pending, .badge-expired, .badge-pending_password, .badge-submitted, .badge-partial, .badge-partially_received, .badge-partially_imported, .badge-quarantine, .badge-picking, .badge-in_progress, .badge-acknowledged { background: var(--warn-bg); color: var(--warn); }
 .badge-critical, .badge-locked, .badge-rejected, .badge-error, .badge-blocked, .badge-failed, .badge-invalid, .badge-cancelled, .badge-inactive { background: var(--crit-bg); color: var(--crit); }
 

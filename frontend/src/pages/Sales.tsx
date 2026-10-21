@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { DocumentActions } from "../components/DocumentActions";
 import { Line, LinesEditor, linesPayload } from "../components/LinesEditor";
 import { TracePanel } from "../components/TracePanel";
 import { ActionButton, Alert, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
@@ -89,7 +90,9 @@ function QuoteModal({ id, onClose, onChanged, onOrder }: { id: number; onClose: 
   return (
     <Modal title={`Cotización ${q.number}`} onClose={onClose}>
       <div className="row between">
-        <Badge value={q.status} />
+        <span className="row"><Badge value={q.status} />
+          <DocumentActions type="sales_quote" id={q.id} number={q.number}
+            canSend={can("sales.quote.create") && ["draft", "sent", "accepted"].includes(q.status)} /></span>
         {can("sales.quote.create") && <span className="row">
           {q.status === "draft" && <ActionButton className="secondary" onClick={async () => { await post(`/sales/quotes/${id}/send`); refresh(); }}>Marcar como enviada</ActionButton>}
           {open && can("sales.order.create") && <button onClick={() => setConverting(true)}>Convertir en pedido</button>}
@@ -181,6 +184,9 @@ export function SalesOrderDetailPage() {
   return (
     <Page title={`Pedido ${so.number}`} subtitle={customerName(so.customer_id)} actions={<>
       <Badge value={so.status} />
+      <DocumentActions type="sales_order" id={so.id} number={so.number}
+        canSend={can("sales.order.create") && ["confirmed", "partially_dispatched", "dispatched", "closed"].includes(so.status)}
+        sendHint={so.status === "draft" ? "Se envía al cliente una vez confirmado" : undefined} />
       {so.status === "draft" && can("sales.order.approve") && <ActionButton onClick={act("confirm")}>Confirmar y reservar</ActionButton>}
       {open && can("logistics.dispatch.create") &&
         <ActionButton onClick={async () => { const d = await post("/logistics/dispatches", { sales_order_id: so.id }); nav(`/logistica/despachos/${d.id}`); }}>Generar despacho</ActionButton>}

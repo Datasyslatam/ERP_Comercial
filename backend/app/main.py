@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.errors import register_error_handlers
 from app.core.http import install_middleware, setup_logging
 from app.modules.accounting.router import router as accounting
+from app.modules.documents.router import router as documents
 from app.modules.einvoicing.router import router as einvoicing
 from app.modules.iam.router import router as iam
 from app.modules.imports.router import router as imports
@@ -61,7 +62,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     api = APIRouter(prefix="/api/v1")
     for r in (iam, masters, org, purchasing, inventory, quality, sales, logistics, operations, accounting, einvoicing,
-              kpi, imports, trace):
+              kpi, imports, trace, documents):
         api.include_router(r)
     app.include_router(api)
     app.include_router(health_router)

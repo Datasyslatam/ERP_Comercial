@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { TracePanel } from "../components/TracePanel";
+import { DocumentActions } from "../components/DocumentActions";
 import { Line, LinesEditor, linesPayload } from "../components/LinesEditor";
 import { ActionButton, Alert, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
 import { Json, post, qs } from "../lib/api";
@@ -153,6 +154,9 @@ export function OrderDetailPage() {
   return (
     <Page title={`Orden de compra ${po.number}`} subtitle={partyName(po.supplier_id)} actions={<>
       <Badge value={po.status} />
+      <DocumentActions type="purchase_order" id={po.id} number={po.number}
+        canSend={can("purchasing.order.create") && ["approved", "partially_received", "received", "closed"].includes(po.status)}
+        sendHint={["draft", "submitted"].includes(po.status) ? "Se envía al proveedor una vez aprobada" : undefined} />
       {po.status === "draft" && <ActionButton onClick={act("submit")}>Enviar a aprobación</ActionButton>}
       {po.status === "submitted" && can("purchasing.order.approve") && <>
         <ActionButton onClick={act("decision", { approve: true })}>Aprobar</ActionButton>

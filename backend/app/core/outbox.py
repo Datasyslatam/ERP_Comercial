@@ -16,10 +16,12 @@ log = logging.getLogger("erp.outbox")
 
 
 def _handlers():
+    from app.modules.documents.service import email_failed, process_email
     from app.modules.einvoicing.service import process_submission, submission_failed
 
     # tipo de evento → (manejador, registro del fallo fuera del savepoint revertido)
-    return {"einvoice.submit": (process_submission, submission_failed)}
+    return {"einvoice.submit": (process_submission, submission_failed),
+            "document.email": (process_email, email_failed)}
 
 
 def process_batch(session_factory, limit: int = 20) -> int:

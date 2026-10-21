@@ -72,6 +72,12 @@ Límites de aprobación por rol: `PUT /api/v1/approval-limits` (`purchase_requis
 - `GET /health/live` (proceso) y `GET /health/ready` (BD + versión de esquema) para el balanceador.
 - `GET /metrics` (Prometheus) solo en red interna; perfil `monitoring` del compose.
 - Logs JSON en stdout con `request_id`, usuario e IP (en auditoría). Configure `SENTRY_DSN` para errores.
+- **Correo saliente** (envío de cotizaciones, pedidos, órdenes de compra y facturas en PDF): `EMAIL_BACKEND=smtp`,
+  `SMTP_HOST`, `SMTP_PORT` (587 con `SMTP_STARTTLS=true`, o 465 con `SMTP_SSL=true`), `SMTP_USER`,
+  `SMTP_PASSWORD`, `MAIL_FROM`. En desarrollo `EMAIL_BACKEND=file` guarda los mensajes `.eml` en
+  `STORAGE_PATH/mail` sin enviarlos; en staging/producción ese modo rechaza el envío. Los correos los entrega el
+  worker con reintentos (5 intentos con espera creciente); un envío fallido queda con su error en el historial del
+  documento y genera una alerta de integración.
 - Alertas funcionales (*Gerencia → Alertas*): KPIs fuera de umbral, faltantes de stock, vencimientos e
   integraciones fallidas. El worker las evalúa cada hora.
 - Vigile: eventos `integration_events` en estado `failed`, documentos electrónicos en `error`, espacio

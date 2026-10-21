@@ -1,6 +1,7 @@
 """Registro único de modelos: importarlo garantiza que Base.metadata contenga todas las tablas."""
 from app.core.db import Base  # noqa: E402
 from app.modules.accounting.models import *  # noqa: F401,F403
+from app.modules.documents.models import *  # noqa: F401,F403
 from app.modules.einvoicing.models import *  # noqa: F401,F403
 from app.modules.iam.models import *  # noqa: F401,F403
 from app.modules.imports.models import *  # noqa: F401,F403
