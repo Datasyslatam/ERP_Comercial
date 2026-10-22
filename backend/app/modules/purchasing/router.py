@@ -260,6 +260,15 @@ def create_order(body: OrderIn, p: Principal = Depends(require("purchasing.order
     return to_dict(po, "lines")
 
 
+@router.put("/orders/{po_id}")
+def update_order(po_id: int, body: OrderIn, p: Principal = Depends(require("purchasing.order.create")),
+                 db: Session = Depends(get_db)):
+    """Edita una orden en borrador: reemplaza encabezado y líneas y recalcula impuestos."""
+    po = svc.update_order(db, p, po_id, body.model_dump(exclude_none=True))
+    db.commit()
+    return to_dict(po, "lines")
+
+
 @router.get("/orders/{po_id}")
 def get_order(po_id: int, p: Principal = Depends(require("purchasing.order.read")), db: Session = Depends(get_db)):
     po = get_owned(db, PurchaseOrder, po_id, p.company_id)

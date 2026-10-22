@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DocumentActions } from "../components/DocumentActions";
+import { DraftEditor, editableLines, PRICE_SOURCES } from "../components/DraftEditor";
 import { Line, LinesEditor, linesPayload } from "../components/LinesEditor";
 import { TracePanel } from "../components/TracePanel";
 import { ActionButton, Alert, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
-import { Json, post, qs } from "../lib/api";
+import { Json, post, put, qs } from "../lib/api";
 import { fmtDate, fmtMoney, fmtNumber } from "../lib/format";
 import { useFetch, useItemNames, useLookup, useOptions } from "../lib/hooks";
 import { useSession } from "../lib/session";
@@ -53,7 +54,7 @@ export function QuotesPage() {
       {creating && (
         <Modal title="Nueva cotización" onClose={() => setCreating(false)}>
           <LinesEditor lines={lines} onChange={setLines} withDiscount priceRequired={false} />
-          <p className="muted">Si no indica precio se usa el precio de lista del artículo.</p>
+          <p className="muted">Precio vacío: se aplica la lista de precios del cliente (o la predeterminada). Descuento vacío: la mejor promoción vigente.</p>
           <Form initial={{ quote_date: today(), valid_until: plusDays(15), currency: "COP" }} fields={[
             { name: "customer_id", label: "Cliente", type: "select", required: true, options: customers },
             { name: "site_id", label: "Sede", type: "select", required: true, options: sites },
@@ -84,6 +85,10 @@ function QuoteModal({ id, onClose, onChanged, onOrder }: { id: number; onClose: 
   const whs = useOptions("/warehouses", (x) => x.name);
   const [converting, setConverting] = useState(false);
   const [losing, setLosing] = useState(false);
+  const [voiding, setVoiding] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const customers = useOptions("/parties?limit=500", (x) => x.legal_name);
+  const sites = useOptions("/sites", (x) => x.name);
   if (!q) return <Modal title="Cotización" onClose={onClose}><p className="muted">Cargando…</p></Modal>;
   const open = ["draft", "sent"].includes(q.status);
   const refresh = () => { reload(); onChanged(); };
@@ -94,19 +99,22 @@ function QuoteModal({ id, onClose, onChanged, onOrder }: { id: number; onClose: 
           <DocumentActions type="sales_quote" id={q.id} number={q.number}
             canSend={can("sales.quote.create") && ["draft", "sent", "accepted"].includes(q.status)} /></span>
         {can("sales.quote.create") && <span className="row">
+          {q.status === "draft" && <button className="secondary" onClick={() => setEditing(true)}>Editar</button>}
           {q.status === "draft" && <ActionButton className="secondary" onClick={async () => { await post(`/sales/quotes/${id}/send`); refresh(); }}>Marcar como enviada</ActionButton>}
           {open && can("sales.order.create") && <button onClick={() => setConverting(true)}>Convertir en pedido</button>}
           {open && <button className="secondary" onClick={() => setLosing(true)}>Registrar como perdida</button>}
+          {(open || q.status === "expired") && <button className="danger" onClick={() => setVoiding(true)}>Anular</button>}
         </span>}
       </div>
       {q.status === "expired" && <Alert kind="warning">La vigencia terminó el {q.valid_until}. Emita una nueva cotización con precios actualizados.</Alert>}
       <KeyValues data={q} keys={[["quote_date", "Fecha"], ["valid_until", "Vigente hasta"], ["contact_name", "Contacto"], ["currency", "Moneda"],
-        ["subtotal", "Subtotal", fmtMoney], ["tax_total", "Impuestos", fmtMoney], ["total", "Total", fmtMoney], ["lost_reason", "Motivo de pérdida"]]} />
+        ["subtotal", "Subtotal", fmtMoney], ["tax_total", "Impuestos", fmtMoney], ["total", "Total", fmtMoney], ["lost_reason", q.status === "cancelled" ? "Motivo de anulación" : "Motivo de pérdida"]]} />
       {q.notes && <p className="muted">{q.notes}</p>}
       <DataTable rows={q.lines} columns={[{ key: "line_no", title: "#" }, { key: "item_id", title: "Artículo", render: (r) => itemName(r.item_id) },
         { key: "quantity", title: "Cantidad", align: "right", render: (r) => fmtNumber(r.quantity) },
         { key: "unit_price", title: "Precio", align: "right", render: (r) => fmtMoney(r.unit_price) },
-        { key: "discount_pct", title: "Desc. %", align: "right", render: (r) => fmtNumber(r.discount_pct) }]} />
+        { key: "discount_pct", title: "Desc. %", align: "right", render: (r) => fmtNumber(r.discount_pct) },
+        { key: "price_source", title: "Origen del precio", render: (r) => <>{PRICE_SOURCES[r.price_source] ?? "—"}{r.promotion_id && <span className="chip">Promoción</span>}</> },]} />
       {q.sales_order_id && <p><button className="secondary" onClick={() => onOrder(q.sales_order_id)}>Ver pedido generado</button></p>}
       <h3>Trazabilidad</h3>
       <TracePanel type="sales_quote" id={id} />
@@ -117,6 +125,20 @@ function QuoteModal({ id, onClose, onChanged, onOrder }: { id: number; onClose: 
           { name: "delivery_address", label: "Dirección de entrega (si difiere)" }]}
           onSubmit={async (d) => { const so = await post(`/sales/quotes/${id}/convert`, d); onChanged(); onOrder(so.id); }} />
       </Modal>}
+      {voiding && <Modal title="Anular cotización" onClose={() => setVoiding(false)}>
+        <p className="muted">Para errores, duplicados o cuando se reemplaza por una nueva. Si el cliente no la aceptó, use «Registrar como perdida».</p>
+        <Form submitLabel="Anular" fields={[{ name: "reason", label: "Motivo", type: "textarea", required: true }]}
+          onSubmit={async (d) => { await post(`/sales/quotes/${id}/cancel`, d); setVoiding(false); refresh(); }} />
+      </Modal>}
+      {editing && <DraftEditor title={`Editar cotización ${q.number}`} sales lines={editableLines(q.lines, true)} onClose={() => setEditing(false)}
+        initial={{ customer_id: q.customer_id, site_id: q.site_id, quote_date: q.quote_date, valid_until: q.valid_until, currency: q.currency,
+          contact_name: q.contact_name ?? "", notes: q.notes ?? "" }}
+        fields={[{ name: "customer_id", label: "Cliente", type: "select", required: true, options: customers },
+          { name: "site_id", label: "Sede", type: "select", required: true, options: sites },
+          { name: "quote_date", label: "Fecha", type: "date", required: true }, { name: "valid_until", label: "Vigente hasta", type: "date", required: true },
+          { name: "currency", label: "Moneda", required: true }, { name: "contact_name", label: "Contacto del cliente" },
+          { name: "notes", label: "Condiciones y observaciones", type: "textarea" }]}
+        onSubmit={async (d, lines) => { await put(`/sales/quotes/${id}`, { ...d, lines }); setEditing(false); refresh(); }} />}
       {losing && <Modal title="Cotización perdida" onClose={() => setLosing(false)}>
         <Form submitLabel="Registrar" fields={[{ name: "reason", label: "Motivo (precio, plazo, competencia…)", type: "textarea", required: true }]}
           onSubmit={async (d) => { await post(`/sales/quotes/${id}/reject`, d); setLosing(false); refresh(); }} />
@@ -177,6 +199,10 @@ export function SalesOrderDetailPage() {
   const itemName = useItemNames();
   const customerName = useLookup("/parties?limit=500", (x) => x.legal_name);
   const [closing, setClosing] = useState<"close" | "cancel" | null>(null);
+  const [editing, setEditing] = useState(false);
+  const customers = useOptions("/parties?limit=500", (x) => x.legal_name);
+  const sites = useOptions("/sites", (x) => x.name);
+  const whs = useOptions("/warehouses", (x) => x.name);
   if (error) return <Alert>{error}</Alert>;
   if (!so) return <p className="muted">Cargando…</p>;
   const act = (path: string, body?: Json) => async () => { await post(`/sales/orders/${so.id}/${path}`, body); reload(); };
@@ -187,6 +213,7 @@ export function SalesOrderDetailPage() {
       <DocumentActions type="sales_order" id={so.id} number={so.number}
         canSend={can("sales.order.create") && ["confirmed", "partially_dispatched", "dispatched", "closed"].includes(so.status)}
         sendHint={so.status === "draft" ? "Se envía al cliente una vez confirmado" : undefined} />
+      {so.status === "draft" && can("sales.order.create") && <button className="secondary" onClick={() => setEditing(true)}>Editar</button>}
       {so.status === "draft" && can("sales.order.approve") && <ActionButton onClick={act("confirm")}>Confirmar y reservar</ActionButton>}
       {open && can("logistics.dispatch.create") &&
         <ActionButton onClick={async () => { const d = await post("/logistics/dispatches", { sales_order_id: so.id }); nav(`/logistica/despachos/${d.id}`); }}>Generar despacho</ActionButton>}
@@ -205,7 +232,18 @@ export function SalesOrderDetailPage() {
         { key: "qty_dispatched", title: "Despachado", align: "right", render: (r) => fmtNumber(r.qty_dispatched) },
         { key: "qty_invoiced", title: "Facturado", align: "right", render: (r) => fmtNumber(r.qty_invoiced) },
         { key: "qty_returned", title: "Devuelto", align: "right", render: (r) => fmtNumber(r.qty_returned) },
-        { key: "pending", title: "Pendiente", align: "right", render: (r) => fmtNumber(Number(r.quantity) - Number(r.qty_dispatched)) }]} />
+        { key: "pending", title: "Pendiente", align: "right", render: (r) => fmtNumber(Number(r.quantity) - Number(r.qty_dispatched)) },
+        { key: "price_source", title: "Origen del precio", render: (r) => <>{PRICE_SOURCES[r.price_source] ?? "—"}{r.promotion_id && <span className="chip">Promoción</span>}</> },]} />
+      {editing && <DraftEditor title={`Editar pedido ${so.number}`} sales lines={editableLines(so.lines, true)} onClose={() => setEditing(false)}
+        initial={{ customer_id: so.customer_id, site_id: so.site_id, warehouse_id: so.warehouse_id, order_date: so.order_date,
+          promised_date: so.promised_date ?? "", currency: so.currency, delivery_address: so.delivery_address ?? "", notes: so.notes ?? "" }}
+        fields={[{ name: "customer_id", label: "Cliente", type: "select", required: true, options: customers },
+          { name: "site_id", label: "Sede", type: "select", required: true, options: sites },
+          { name: "warehouse_id", label: "Bodega", type: "select", required: true, options: whs },
+          { name: "order_date", label: "Fecha", type: "date", required: true }, { name: "promised_date", label: "Fecha prometida", type: "date" },
+          { name: "currency", label: "Moneda", required: true }, { name: "delivery_address", label: "Dirección de entrega" },
+          { name: "notes", label: "Notas", type: "textarea" }]}
+        onSubmit={async (d, lines) => { await put(`/sales/orders/${so.id}`, { ...d, lines }); setEditing(false); reload(); }} />}
       <h3>Trazabilidad</h3>
       <TracePanel type="sales_order" id={so.id} />
       <p className="muted">Creado {fmtDate(so.created_at)}</p>

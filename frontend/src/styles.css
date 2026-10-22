@@ -359,3 +359,6 @@ button.user-chip:disabled { opacity: 1; cursor: default; background: rgba(255, 2
 .meter { height: 12px; border-radius: 999px; background: var(--neutral-bg); overflow: hidden; max-width: 520px; }
 .meter span { display: block; height: 100%; background: var(--ok); border-radius: 999px; }
 .meter span.near { background: var(--warn); } .meter span.over { background: var(--crit); }
+
+.checklist { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: .3rem 1rem; max-height: 280px; overflow-y: auto;
+  padding: .6rem .8rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); margin-bottom: .6rem; }

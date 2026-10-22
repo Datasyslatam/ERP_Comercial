@@ -18,6 +18,7 @@
 
 | Área | Rutas principales |
 |---|---|
+| Precios y promociones | `/sales/price-lists` (+ `/items`, `/customers`), `/sales/promotions`, `/sales/pricing` (consulta) |
 | Documentos comerciales | `/documents/{tipo}/{id}/pdf`, `/email`, `/email-defaults`, `/emails` (cotización, pedido, OC, factura) |
 | Trazabilidad | `/trace/{tipo}/{id}` (cadena documental entre módulos), `/trace/search?q=` |
 | Autenticación y administración | `/auth/*`, `/admin/users` (ficha, roles, contraseña, desbloqueo, sesiones), `/admin/roles`, `/admin/permissions`, `/admin/access-review`, `/admin/audit` (+ `export.csv`), `/admin/login-attempts` |

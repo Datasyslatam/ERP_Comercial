@@ -31,9 +31,9 @@ export function LinesEditor({ lines, onChange, withDiscount = false, priceRequir
               </td>
               <td><input aria-label="Cantidad" type="number" step="any" min="0" required value={l.quantity}
                          onChange={(e) => set(i, "quantity", e.target.value)} /></td>
-              <td><input aria-label="Precio" type="number" step="any" min="0" required={priceRequired}
+              <td><input aria-label="Precio" type="number" step="any" min="0" required={priceRequired} placeholder={priceRequired ? undefined : "Automático"}
                          value={l.unit_price} onChange={(e) => set(i, "unit_price", e.target.value)} /></td>
-              {withDiscount && <td><input aria-label="Descuento" type="number" step="any" min="0" max="100"
+              {withDiscount && <td><input aria-label="Descuento" type="number" step="any" min="0" max="100" placeholder="Promoción"
                                           value={l.discount_pct ?? ""} onChange={(e) => set(i, "discount_pct", e.target.value)} /></td>}
               <td><button type="button" className="secondary" onClick={() => onChange(lines.filter((_, j) => j !== i))}
                           aria-label="Quitar línea">✕</button></td>

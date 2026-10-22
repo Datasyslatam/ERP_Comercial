@@ -23,13 +23,13 @@ funcionalidad por módulo y documentos comerciales en PDF con envío por correo)
 | 8 | Devolución de dinero a clientes cuando la nota crédito supera el saldo de la factura (hoy se bloquea). |
 | 9 | Retenciones al pagar (en vez de al facturar) y retenciones de IVA en compras de Venezuela por comprobante. |
 | 10 | ~~PDF y envío por correo~~ — **implementado** para cotización, pedido, orden de compra y factura / notas (cola con reintentos y bitácora). Falta: código QR y representación gráfica oficial exigida por el proveedor tecnológico (depende del #1), PDF de comprobantes de egreso y recibos de caja, y adjuntar el XML firmado al correo de la factura. |
-| 11 | ~~Cotizaciones de venta~~ — **implementadas** (vigencia, pérdida con motivo, conversión a pedido). Falta: listas de precios por cliente o canal, descuentos por volumen y promociones. |
+| 11 | ~~Cotizaciones, listas de precios por cliente, descuentos por volumen y promociones~~ — **implementados**. Falta: listas por canal de venta o zona, y promociones por monto de compra o tipo "lleve N pague M". |
 | 12 | Planeación de producción (MRP) y capacidad por centro de trabajo; hoy la planificación es por orden. |
 | 13 | Flujo de efectivo indirecto y clasificación de actividades de inversión/financiación por cuenta. |
 | 14 | Diferencia en cambio no realizada (reexpresión de saldos en divisas al cierre). |
 | 15 | Extractos bancarios: hoy se cargan pegando los movimientos en pantalla. Falta leer los archivos propios de cada banco (CSV/Excel/OFX) con su formato. |
 | 16 | ~~Pantallas para retenciones, notas, listas de materiales, rutas, devoluciones, incidencias, conciliación bancaria y límites de aprobación~~ — **implementadas**. Quedan solo por API: metas por sede y la carga de adjuntos desde las pantallas de documentos. |
-| 29 | Gestión de documentos comerciales: anulación de cotizaciones, edición de pedidos y órdenes en borrador (hoy se anulan y se crean de nuevo). |
+| 29 | ~~Anulación de cotizaciones y edición de cotizaciones, pedidos y órdenes de compra en borrador~~ — **implementadas**. |
 
 ## Técnicos y de seguridad
 

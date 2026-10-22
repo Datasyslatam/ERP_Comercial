@@ -23,6 +23,7 @@ from app.modules.org.router import health_router
 from app.modules.org.router import router as org
 from app.modules.purchasing.router import router as purchasing
 from app.modules.quality.router import router as quality
+from app.modules.sales.pricing_router import router as sales_pricing
 from app.modules.sales.router import router as sales
 from app.modules.trace.router import router as trace
 
@@ -62,7 +63,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     api = APIRouter(prefix="/api/v1")
     for r in (iam, masters, org, purchasing, inventory, quality, sales, logistics, operations, accounting, einvoicing,
-              kpi, imports, trace, documents):
+              kpi, imports, trace, documents, sales_pricing):
         api.include_router(r)
     app.include_router(api)
     app.include_router(health_router)

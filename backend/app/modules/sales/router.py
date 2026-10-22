@@ -21,7 +21,7 @@ class SoLine(BaseModel):
     item_id: int
     quantity: Decimal = QtyField()
     unit_price: Decimal | None = Field(default=None, ge=0)
-    discount_pct: Decimal = Field(default=Decimal("0"), ge=0, le=100)
+    discount_pct: Decimal | None = Field(default=None, ge=0, le=100, description="Omitir para aplicar promociones")
     tax_id: int | None = None
     description: str | None = Field(default=None, max_length=255)
 
@@ -77,6 +77,15 @@ def get_order(so_id: int, p: Principal = Depends(require("sales.order.read")), d
         select(DispatchOrder).where(DispatchOrder.sales_order_id == so.id))]
     out["invoices"] = [to_dict(i) for i in db.scalars(select(SalesInvoice).where(SalesInvoice.sales_order_id == so.id))]
     return out
+
+
+@router.put("/orders/{so_id}")
+def update_order(so_id: int, body: SalesOrderIn, p: Principal = Depends(require("sales.order.create")),
+                 db: Session = Depends(get_db)):
+    """Edita un pedido en borrador: reemplaza encabezado y líneas y recalcula precios, promociones e impuestos."""
+    so = svc.update_order(db, p, so_id, body.model_dump(exclude_none=True))
+    db.commit()
+    return to_dict(so, "lines")
 
 
 @router.post("/orders/{so_id}/confirm")
@@ -170,6 +179,24 @@ def create_quote(body: QuoteIn, p: Principal = Depends(require("sales.quote.crea
 @router.get("/quotes/{quote_id}")
 def get_quote(quote_id: int, p: Principal = Depends(require("sales.quote.read")), db: Session = Depends(get_db)):
     return _quote_out(get_owned(db, SalesQuote, quote_id, p.company_id))
+
+
+@router.put("/quotes/{quote_id}")
+def update_quote(quote_id: int, body: QuoteIn, p: Principal = Depends(require("sales.quote.create")),
+                 db: Session = Depends(get_db)):
+    """Edita una cotización en borrador (una enviada al cliente se anula y se emite otra)."""
+    q = svc.update_quote(db, p, quote_id, body.model_dump(exclude_none=True))
+    db.commit()
+    return _quote_out(q)
+
+
+@router.post("/quotes/{quote_id}/cancel")
+def cancel_quote(quote_id: int, body: ReasonIn, p: Principal = Depends(require("sales.quote.create")),
+                 db: Session = Depends(get_db)):
+    """Anulación interna de una cotización abierta (error, duplicado o reemplazo)."""
+    q = svc.cancel_quote(db, p, quote_id, body.reason)
+    db.commit()
+    return _quote_out(q)
 
 
 @router.post("/quotes/{quote_id}/send")

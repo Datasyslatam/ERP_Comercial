@@ -144,6 +144,7 @@ erDiagram
         BIGINT company_id FK
         VARCHAR code
         BIGINT payment_term_id FK
+        BIGINT price_list_id FK
         BIGINT id PK
     }
     party_withholdings {
@@ -204,7 +205,7 @@ erDiagram
     uoms ||--o{ uom_conversions : "to_uom_id"
 ```
 
-Relaciones con otros dominios: `item_categories` → accounts, companies; `items` → companies; `parties` → companies; `payment_terms` → companies; `taxes` → accounts, companies.
+Relaciones con otros dominios: `item_categories` → accounts, companies; `items` → companies; `parties` → companies, price_lists; `payment_terms` → companies; `taxes` → accounts, companies.
 
 ## Compras
 
@@ -523,6 +524,7 @@ erDiagram
         BIGINT sales_order_id FK
         BIGINT item_id FK
         BIGINT tax_id FK
+        BIGINT promotion_id FK
         BIGINT id PK
     }
     delivery_routes {
@@ -591,7 +593,7 @@ erDiagram
     sales_orders ||--o{ sales_order_lines : "sales_order_id"
 ```
 
-Relaciones con otros dominios: `customer_return_lines` → items, lots; `customer_returns` → companies, locations, parties, users; `delivery_incidents` → companies, users; `delivery_routes` → companies, sites; `dispatch_lines` → items; `dispatch_orders` → companies, parties, users, warehouses; `sales_order_lines` → items, taxes; `sales_orders` → companies, currencies, parties, payment_terms, sites, users, warehouses; `shipment_events` → users.
+Relaciones con otros dominios: `customer_return_lines` → items, lots; `customer_returns` → companies, locations, parties, users; `delivery_incidents` → companies, users; `delivery_routes` → companies, sites; `dispatch_lines` → items; `dispatch_orders` → companies, parties, users, warehouses; `sales_order_lines` → items, promotions, taxes; `sales_orders` → companies, currencies, parties, payment_terms, sites, users, warehouses; `shipment_events` → users.
 
 ## Operaciones
 

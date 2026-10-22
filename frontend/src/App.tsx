@@ -13,6 +13,7 @@ import { OrderDetailPage, OrdersPage, PriceHistoryPage, PurchaseBudgetPage, Rece
 import { InspectionPlansPage, InspectionsPage, LotsQualityPage, NonConformitiesPage } from "./pages/Quality";
 import { DispatchesPage, QuotesPage, SalesOrderDetailPage, SalesOrdersPage } from "./pages/Sales";
 import { TracePage } from "./pages/Trace";
+import { PriceListsPage, PromotionsPage } from "./pages/Pricing";
 import { DispatchDetailPage, IncidentsPage, ReturnsPage, RoutesPlanPage } from "./pages/Logistics";
 import { InvoicingPage } from "./pages/Invoicing";
 import { BomsPage } from "./pages/Production";
@@ -50,6 +51,8 @@ function Routed() {
         <Route path="calidad/planes" element={<InspectionPlansPage />} />
         <Route path="calidad/lotes" element={<LotsQualityPage />} />
         <Route path="ventas/cotizaciones" element={<QuotesPage />} />
+        <Route path="ventas/listas-precios" element={<PriceListsPage />} />
+        <Route path="ventas/promociones" element={<PromotionsPage />} />
         <Route path="ventas/pedidos" element={<SalesOrdersPage />} />
         <Route path="ventas/pedidos/:id" element={<SalesOrderDetailPage />} />
         <Route path="trazabilidad" element={<TracePage />} />
