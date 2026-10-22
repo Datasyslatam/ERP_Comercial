@@ -26,6 +26,15 @@ def _stop(*_):
     _running = False
 
 
+def evaluate_all_alerts(session_factory) -> None:
+    with session_factory() as db:
+        for company in db.scalars(select(Company).where(Company.is_active.is_(True))):
+            created = evaluate_alerts(db, company)
+            db.commit()
+            # "created" es un atributo reservado de LogRecord: usarlo en extra lanza KeyError.
+            log.info("alerts_evaluated", extra={"company": company.code, "alerts_created": created})
+
+
 def run(poll_seconds: float = 5.0, alert_every_seconds: int = 3600) -> None:
     setup_logging()
     register_audit_listener()
@@ -37,12 +46,9 @@ def run(poll_seconds: float = 5.0, alert_every_seconds: int = 3600) -> None:
         try:
             n = process_batch(SessionLocal)
             if time.monotonic() - last_alerts > alert_every_seconds:
-                with SessionLocal() as db:
-                    for company in db.scalars(select(Company).where(Company.is_active.is_(True))):
-                        created = evaluate_alerts(db, company)
-                        db.commit()
-                        log.info("alerts_evaluated", extra={"company": company.code, "created": created})
+                # Se marca antes de evaluar: un fallo no debe repetir la evaluación en cada vuelta del ciclo.
                 last_alerts = time.monotonic()
+                evaluate_all_alerts(SessionLocal)
             if n == 0:
                 time.sleep(poll_seconds)
         except Exception:  # noqa: BLE001 - el worker no debe morir por un fallo puntual
