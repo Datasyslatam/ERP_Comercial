@@ -19,7 +19,7 @@
 | Área | Rutas principales |
 |---|---|
 | Precios y promociones | `/sales/price-lists` (+ `/items`, `/customers`), `/sales/promotions`, `/sales/pricing` (consulta) |
-| Documentos comerciales | `/documents/{tipo}/{id}/pdf`, `/email`, `/email-defaults`, `/emails` (cotización, pedido, OC, factura) |
+| Documentos comerciales | `/documents/{tipo}/{id}/pdf`, `/email`, `/email-defaults`, `/emails` (cotización, pedido, OC, factura, pago: recibo de caja / comprobante de egreso) |
 | Trazabilidad | `/trace/{tipo}/{id}` (cadena documental entre módulos), `/trace/search?q=` |
 | Autenticación y administración | `/auth/*`, `/admin/users` (ficha, roles, contraseña, desbloqueo, sesiones), `/admin/roles`, `/admin/permissions`, `/admin/access-review`, `/admin/audit` (+ `export.csv`), `/admin/login-attempts` |
 | Empresa y parametrización | `/company`, `/company/settings`, `/company/modules/{m}`, `/approval-limits`, `/sites`, `/business-units`, `/cost-centers`, `/exchange-rates`, `/document-sequences`, `/posting-accounts` |
@@ -30,7 +30,7 @@
 | Ventas | `/sales/orders` (+`/confirm`, `/cancel`), `/customers/{id}/credit` |
 | Logística | `/logistics/dispatches` (+`/plan`, `/start-picking`, `/picking`, `/pack`, `/ship`, `/deliver`, `/cancel`, `/events`, `/incidents`, `/returns`), `/incidents/{id}/resolve`, `/returns`, `/delivery-plan` |
 | Operaciones | `/operations/boms`, `/work-orders` (+`/release`, `/issues`, `/time-logs`, `/output`, `/incidents`, `/complete`, `/close`) |
-| Contabilidad | `/accounting/entries` (+`/post`, `/reverse`), `/periods` (+`/close`, `/reopen`, `/open-year`), `/year-close`, `/open-items`, `/aging`, `/payments` (+`/void`), `/bank-statements` (+`/auto-match`, `/reconciliation`), `/bank-statement-lines/{id}/match`, `/reports/{trial-balance, general-ledger, journal, income-statement, balance-sheet, cash-flow}`, `/budgets`, `/goals` |
+| Contabilidad | `/accounting/entries` (+`/post`, `/reverse`), `/periods` (+`/close`, `/reopen`, `/open-year`), `/year-close`, `/open-items`, `/aging`, `/payments` (+`/void`, `/withholding-suggestions`), `/bank-statements` (+`/parse` archivo CSV/XLSX/OFX, `/auto-match`, `/reconciliation`), `/bank-statement-lines/{id}/match`, `/reports/{trial-balance, general-ledger, journal, income-statement, balance-sheet, cash-flow}`, `/budgets`, `/goals` |
 | Facturación | `/einvoicing/numbering-ranges`, `/invoices` (+`/from-dispatch`, `/issue`, `/resend`, `/cancel`, `/notes`, `/document`), `/reconciliation`, `/correction-codes` |
 | Indicadores | `/kpi/definitions`, `/dashboard` (+`.csv`), `/kpis/{code}` (+`/trend`), `/targets`, `/alerts` (+`/ack`, `/evaluate`) |
 | Importación | `/imports/entities`, `/templates/{entity}`, `/jobs` (+`/rows`, `/validate`, `/commit`, `/reconciliation`), `/rows/{id}`, `/opening-batches` (+`/approve`, `/post`) |

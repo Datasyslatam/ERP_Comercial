@@ -8,7 +8,7 @@ const splitEmails = (s: string) => s.split(/[,;\s]+/).map((x) => x.trim()).filte
 
 /** PDF del documento y envío por correo (con historial de envíos). `canSend` según permiso y estado del documento. */
 export function DocumentActions({ type, id, number, canSend, sendHint }: {
-  type: "sales_quote" | "sales_order" | "purchase_order" | "sales_invoice"; id: number; number: string;
+  type: "sales_quote" | "sales_order" | "purchase_order" | "sales_invoice" | "payment"; id: number; number: string;
   canSend: boolean; sendHint?: string;
 }) {
   const [sending, setSending] = useState(false);

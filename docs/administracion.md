@@ -44,6 +44,7 @@ por fechas, usuario, acción, entidad y texto, y se exporta desde *Administraci�
 | `receipt_over_tolerance_pct` | 0 | Sobre-recepción permitida (%) |
 | `invoice_price_tolerance_pct` | 1 | Diferencia de precio factura vs OC (%) |
 | `purchase_budget_control` | warn | `block` impide aprobar OC sobre presupuesto |
+| `withholding_on_payment` | false | `true` practica las retenciones a proveedores al pagar (no al causar la factura); cada una genera comprobante de retención (`CR` en Colombia; `AAAAMM` + 8 dígitos en Venezuela) |
 
 Límites de aprobación por rol: `PUT /api/v1/approval-limits` (`purchase_requisition`, `purchase_order`,
 `inventory_adjustment`, `payment`). Módulos por empresa: `PUT /api/v1/company/modules/{módulo}`.

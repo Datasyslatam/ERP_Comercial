@@ -15,9 +15,11 @@ from sqlalchemy.orm import Session
 from app.core.audit import log_action
 from app.core.deps import Principal
 from app.core.errors import BusinessRuleViolation, Forbidden, NotFound
+from app.modules.accounting.models import BankAccount, OpenItem, Payment
 from app.modules.documents import mailer
 from app.modules.documents.models import DocumentEmail
 from app.modules.documents.pdf import DocData, Line, fdate, money, render
+from app.modules.documents.words import amount_in_words
 from app.modules.einvoicing.models import NumberingRange, SalesInvoice
 from app.modules.inventory.models import Warehouse
 from app.modules.masters.models import Item, Party, PaymentTerm, Tax, UnitOfMeasure
@@ -43,7 +45,14 @@ DOCS: dict[str, DocType] = {
                               ("approved", "partially_received", "received", "closed")),
     "sales_invoice": DocType(SalesInvoice, "einvoicing.invoice.read", "einvoicing.invoice.create", "Factura electrónica",
                              ("issued",)),
+    "payment": DocType(Payment, "accounting.payments.read", "accounting.payments.create", "Comprobante de pago",
+                       ("posted",)),
 }
+PAYMENT_TITLES = {"receipt": "Recibo de caja", "disbursement": "Comprobante de egreso"}
+DOC_LABELS = {"invoice": "Factura de venta", "credit_note": "Nota crédito", "debit_note": "Nota débito",
+              "supplier_invoice": "Factura de proveedor", "opening": "Saldo inicial"}
+METHODS = {"transfer": "Transferencia", "cash": "Efectivo", "check": "Cheque", "card": "Tarjeta",
+           "mobile_payment": "Pago móvil", "other": "Otro"}
 NOTE_TITLES = {"invoice": "Factura electrónica de venta", "credit_note": "Nota crédito", "debit_note": "Nota débito"}
 ID_LABELS = {"NIT": "NIT", "RIF": "RIF", "CC": "C.C.", "CE": "C.E.", "CI": "C.I.", "PAS": "Pasaporte", "EXT": "Doc. extranjero"}
 
@@ -122,7 +131,52 @@ def _term_name(db: Session, term_id: int | None) -> str | None:
     return t.name if t else None
 
 
+def payment_data(db: Session, pay: Payment) -> DocData:
+    """Recibo de caja (recaudo de cliente) o comprobante de egreso (pago a proveedor) con sus retenciones."""
+    company = db.get(Company, pay.company_id)
+    party = db.get(Party, pay.party_id)
+    bank = db.get(BankAccount, pay.bank_account_id)
+    receipt = pay.kind == "receipt"
+    rows, applied = [], Decimal("0")
+    for a in pay.allocations:
+        item = db.get(OpenItem, a.open_item_id)
+        rows.append([item.document_number, f"{DOC_LABELS.get(item.document_type, item.document_type)} · emitida "
+                     f"{fdate(item.issue_date)}", fdate(item.due_date), money(item.original_amount), money(a.amount)])
+        applied += a.amount
+    totals = [("Total aplicado a documentos", money(applied), False)]
+    if pay.withholding_amount:
+        totals.append(("Retenciones", f"-{money(pay.withholding_amount)}", False))
+    if pay.igtf_amount:
+        totals.append(("IGTF", money(pay.igtf_amount), False))
+    totals.append((f"{'Valor recibido' if receipt else 'Valor pagado'} {pay.currency}", money(pay.amount), True))
+    fiscal = []
+    for w in pay.withholdings:
+        tax = db.get(Tax, w.tax_id)
+        rate = "" if "%" in tax.name else f" ({money(tax.rate)} %)"
+        text = f"{tax.name}{rate} sobre base {money(w.base)}: {money(w.amount)}"
+        if w.certificate_number:
+            text += f" · comprobante de retención {w.certificate_number}"
+        fiscal.append(("Retención practicada por el cliente" if receipt else "Retención practicada", text))
+    fields = [("Fecha", fdate(pay.payment_date)), ("Medio de pago", METHODS.get(pay.method, pay.method)),
+              ("Referencia", pay.reference or "-"), ("Cuenta bancaria", bank.name if bank else "-"),
+              ("Moneda", pay.currency)]
+    if pay.currency != company.functional_currency:
+        fields.append(("Tasa de cambio", money(pay.exchange_rate, 4)))
+    return DocData(
+        title=PAYMENT_TITLES[pay.kind], number=pay.number, company=_company_block(company),
+        party_label="Recibido de" if receipt else "Pagado a", party=_party_block(party), fields=fields, lines=[],
+        columns=[("Documento", 30, "L"), ("Concepto", 77.9, "L"), ("Vence", 22, "C"), ("Valor documento", 28, "R"),
+                 ("Aplicado", 30, "R")],
+        rows=rows, totals=totals, currency=pay.currency, fiscal=fiscal,
+        notes=f"Son: {amount_in_words(pay.amount, pay.currency)}",
+        notice="ANULADO" if pay.status == "voided" else None,
+        terms=None if receipt else ("Recibí conforme: ______________________________\n"
+                                    "C.C./NIT: __________________   Fecha: ____________"))
+
+
 def document_data(db: Session, doc_type: str, obj) -> DocData:
+    if doc_type == "payment":
+        return payment_data(db, obj)
     company = db.get(Company, obj.company_id)
     party_id = getattr(obj, "customer_id", None) or getattr(obj, "supplier_id", None)
     party = db.get(Party, party_id)
@@ -229,18 +283,25 @@ def _split(addresses: list[str] | None) -> list[str]:
 
 def default_message(db: Session, doc_type: str, obj) -> dict:
     company = db.get(Company, obj.company_id)
-    party = db.get(Party, getattr(obj, "customer_id", None) or getattr(obj, "supplier_id", None))
+    party = db.get(Party, getattr(obj, "customer_id", None) or getattr(obj, "supplier_id", None)
+                   or getattr(obj, "party_id", None))
     name = company.trade_name or company.legal_name
     number = number_of(doc_type, obj)
     title = DOCS[doc_type].title
     if doc_type == "sales_invoice":
         title = NOTE_TITLES.get(obj.doc_type, title)
+    elif doc_type == "payment":
+        title = PAYMENT_TITLES[obj.kind]
     intro = {
         "sales_quote": f"adjuntamos la cotización {number}, vigente hasta el {fdate(getattr(obj, 'valid_until', None))}.",
         "sales_order": f"adjuntamos la confirmación de su pedido {number}.",
         "purchase_order": f"adjuntamos la orden de compra {number}. Por favor confirme la fecha de entrega y cite "
                           "este número en su remisión y factura.",
         "sales_invoice": f"adjuntamos la representación gráfica del documento {number}.",
+        "payment": (f"adjuntamos el recibo de caja {number} por el pago recibido. Gracias por su pago."
+                    if getattr(obj, "kind", "") == "receipt" else
+                    f"adjuntamos el comprobante de egreso {number} con el detalle de los documentos pagados"
+                    " y, si aplica, los comprobantes de retención."),
     }[doc_type]
     return {"to": [party.email] if party and party.email else [],
             "subject": f"{title} {number} · {name}",

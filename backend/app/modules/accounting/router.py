@@ -3,7 +3,7 @@ import io
 from datetime import date
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
@@ -245,6 +245,13 @@ def list_payments(kind: str | None = None, party_id: int | None = None, limit: i
     return paginate(db, stmt.order_by(Payment.id.desc()), limit, offset, "allocations", "withholdings")
 
 
+@router.get("/payments/withholding-suggestions")
+def withholding_suggestions(open_item_id: int, applied: Decimal = Query(gt=0),
+                            p: Principal = Depends(require("accounting.payments.create")), db: Session = Depends(get_db)):
+    """Retenciones sugeridas al pagar una cuenta por pagar (configuración del proveedor y bases mínimas)."""
+    return svc.withholding_suggestions(db, p, open_item_id, applied)
+
+
 @router.post("/payments", status_code=201)
 def register_payment(body: PaymentIn, p: Principal = Depends(require("accounting.payments.create")),
                      db: Session = Depends(get_db)):
@@ -268,6 +275,14 @@ def import_statement(body: StatementIn, p: Principal = Depends(require("accounti
     st = svc.import_statement(db, p, body.model_dump())
     db.commit()
     return to_dict(st, "lines")
+
+
+@router.post("/bank-statements/parse")
+async def parse_statement_file(file: UploadFile = File(...), p: Principal = Depends(require("accounting.bank.create"))):
+    """Lee un extracto (CSV, Excel .xlsx u OFX) y devuelve los movimientos y saldos para revisar antes de cargarlo."""
+    from app.modules.accounting.statements import parse_statement
+
+    return parse_statement(file.filename or "", await file.read())
 
 
 @router.get("/bank-statements")

@@ -161,6 +161,11 @@ def post_payment(db: Session, pay, allocations: list[tuple], user_id: int | None
     else:
         lines.append(LineSpec(account_id=bank.gl_account_id, credit=cash + igtf, currency=pay.currency,
                               amount_currency=-(pay.amount + pay.igtf_amount), exchange_rate=rate))
+        for w in pay.withholdings:  # retención practicada al proveedor: pasivo con la autoridad tributaria
+            tax = db.get(Tax, w.tax_id)
+            lines.append(LineSpec(account_id=_tax_account(tax, "purchases"), credit=money(w.amount * rate),
+                                  party_id=pay.party_id,
+                                  description=f"Retención practicada: {tax.name} (comprobante {w.certificate_number})"))
         if igtf:
             lines.append(LineSpec(account_id=_tax_account(igtf_tax, "purchases"), debit=igtf, description="IGTF pagado"))
     diff = sum((ln.debit - ln.credit for ln in lines), ZERO)

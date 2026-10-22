@@ -10,6 +10,7 @@ DEFAULT_PREFIXES = {
     "supplier_invoice": "FP", "inventory_document": "MI", "physical_count": "CF", "sales_order": "PV",
     "dispatch": "DS", "customer_return": "DV", "sales_quote": "CT", "work_order": "OT", "inspection": "IN", "nonconformity": "NC",
     "journal_entry": "CC", "payment_receipt": "RC", "payment_disbursement": "CE",
+    "withholding_certificate": "CR",
 }
 
 
