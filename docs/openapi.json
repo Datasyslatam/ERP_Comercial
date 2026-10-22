@@ -14428,6 +14428,75 @@
     }
    }
   },
+  "/api/v1/accounting/payments/withholding-suggestions": {
+   "get": {
+    "tags": [
+     "Contabilidad y finanzas"
+    ],
+    "summary": "Withholding Suggestions",
+    "description": "Retenciones sugeridas al pagar una cuenta por pagar (configuración del proveedor y bases mínimas).",
+    "operationId": "withholding_suggestions_api_v1_accounting_payments_withholding_suggestions_get",
+    "parameters": [
+     {
+      "name": "open_item_id",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Open Item Id"
+      }
+     },
+     {
+      "name": "applied",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "number",
+         "exclusiveMinimum": 0.0
+        },
+        {
+         "type": "string"
+        }
+       ],
+       "title": "Applied"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/accounting/payments/{payment_id}/void": {
    "post": {
     "tags": [
@@ -14575,6 +14644,59 @@
       "description": "Empresa sobre la que se opera"
      }
     ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/accounting/bank-statements/parse": {
+   "post": {
+    "tags": [
+     "Contabilidad y finanzas"
+    ],
+    "summary": "Parse Statement File",
+    "description": "Lee un extracto (CSV, Excel .xlsx u OFX) y devuelve los movimientos y saldos para revisar antes de cargarlo.",
+    "operationId": "parse_statement_file_api_v1_accounting_bank_statements_parse_post",
+    "parameters": [
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_parse_statement_file_api_v1_accounting_bank_statements_parse_post"
+       }
+      }
+     }
+    },
     "responses": {
      "200": {
       "description": "Successful Response",
@@ -19795,6 +19917,20 @@
      "source_description"
     ],
     "title": "BatchIn"
+   },
+   "Body_parse_statement_file_api_v1_accounting_bank_statements_parse_post": {
+    "properties": {
+     "file": {
+      "type": "string",
+      "format": "binary",
+      "title": "File"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file"
+    ],
+    "title": "Body_parse_statement_file_api_v1_accounting_bank_statements_parse_post"
    },
    "Body_upload_api_v1_attachments_post": {
     "properties": {

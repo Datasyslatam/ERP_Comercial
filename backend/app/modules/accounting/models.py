@@ -223,6 +223,8 @@ class PaymentWithholding(IdMixin, Base):
     tax_id: Mapped[int] = mapped_column(ForeignKey("taxes.id"))
     base: Mapped[Decimal]
     amount: Mapped[Decimal]
+    # Solo en pagos a proveedores: número del comprobante de retención que se entrega al proveedor
+    certificate_number: Mapped[str | None] = mapped_column(String(30))
 
 
 class BankStatement(IdMixin, CompanyMixin, TimestampMixin, Base):

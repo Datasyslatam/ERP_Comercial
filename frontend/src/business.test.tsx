@@ -19,6 +19,12 @@ const responses: Record<string, unknown> = {
   "/documents/sales_order/5/emails": [{ id: 1, created_at: "2026-10-21T10:00:00Z", to_addresses: "compras@cliente.co",
     subject: "Pedido", status: "sent", sent_at: "2026-10-21T10:00:05Z" }],
   "/sales/quotes": { items: [{ id: 7, number: "CT-000007", status: "sent", customer_id: 3, total: "500.00", currency: "COP" }] },
+  "/taxes?active=true&limit=200": { items: [
+    { id: 11, code: "RTEC25", name: "Retefuente compras 2,5 %", kind: "withholding_income", rate: "2.5", applies_to: "purchases" },
+    { id: 12, code: "RTV", name: "Retención por ventas", kind: "withholding_income", rate: "4", applies_to: "sales" }] },
+  "/accounting/payments/withholding-suggestions?open_item_id=31&applied=1190.00": { agent: true, already_withheld: [],
+    suggestions: [{ tax_id: 11, code: "RTEC25", name: "Retefuente compras 2,5 %", rate: "2.5", base: "1000.00", amount: "25.00" }] },
+  "/bank-accounts": { items: [{ id: 2, name: "Bancolombia", currency: "COP" }] },
 };
 vi.mock("./lib/api", () => ({
   get: (path: string) => Promise.resolve(path.startsWith("/trace/sales_quote") ? { nodes: [], edges: [] } : responses[path] ?? { items: [] }),
@@ -26,6 +32,7 @@ vi.mock("./lib/api", () => ({
   qs: () => "",
   download: vi.fn(),
   put: vi.fn(),
+  patch: vi.fn(),
   api: vi.fn(),
 }));
 vi.mock("./lib/session", () => ({
@@ -35,7 +42,7 @@ vi.mock("./lib/session", () => ({
 import { DocumentActions } from "./components/DocumentActions";
 import { DraftEditor, editableLines } from "./components/DraftEditor";
 import { TracePanel } from "./components/TracePanel";
-import { parseStatementLines } from "./pages/Accounting";
+import { parseStatementLines, PaymentModal, StatementImport } from "./pages/Accounting";
 import { QuotesPage } from "./pages/Sales";
 
 beforeEach(() => post.mockReset());
@@ -128,5 +135,51 @@ describe("Extracto bancario", () => {
     expect(rows).toEqual([
       { txn_date: "2026-10-01", description: "Consignación", reference: "RC-1", amount: "1500000.50" },
       { txn_date: "2026-10-02", description: "Pago", reference: null, amount: "-850000.25" }]);
+  });
+});
+
+describe("Tesorería", () => {
+  it("sugiere las retenciones del proveedor al pagar y descuenta el valor pagado", async () => {
+    post.mockResolvedValue({ id: 1 });
+    const onDone = vi.fn();
+    render(<PaymentModal kind="payable" onClose={vi.fn()} onDone={onDone}
+      item={{ open_item_id: 31, document: "FE-2002", open_amount: "1190.00", currency: "COP", party_id: 8 }} />);
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText("Retenciones que practica la empresa")).toBeInTheDocument();
+    fireEvent.click(dialog.getByText("Sugerir según el proveedor"));
+    expect(await dialog.findByDisplayValue("25.00")).toBeInTheDocument();
+    // Solo se ofrecen retenciones de compras al pagar a proveedores
+    expect(dialog.queryByRole("option", { name: /Retención por ventas/ })).not.toBeInTheDocument();
+    expect(dialog.getByText(/saldo − retenciones = 1165.00/)).toBeInTheDocument();
+    fireEvent.change(dialog.getByLabelText(/Cuenta bancaria/), { target: { value: "2" } });
+    fireEvent.change(dialog.getByLabelText(/Fecha/), { target: { value: "2026-10-22" } });
+    expect(dialog.getByLabelText(/Valor pagado/)).toHaveValue(1165); // neto de retenciones, ya propuesto
+    fireEvent.click(dialog.getByText("Guardar"));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(post.mock.calls[0][1]).toMatchObject({ kind: "disbursement", party_id: 8,
+      withholdings: [{ tax_id: 11, base: "1000.00", amount: "25.00" }], allocations: [{ open_item_id: 31, amount: "1190.00" }] });
+  });
+
+  it("carga el extracto desde el archivo del banco y prellena saldos y fecha", async () => {
+    post.mockResolvedValueOnce({ format: "csv", warnings: ["Fila 9: fecha no reconocida"], statement_date: "2026-10-03",
+      opening_balance: "1000000.00", closing_balance: "1638000.50", lines: [
+        { txn_date: "2026-10-01", description: "Consignación; cliente", reference: "RC-1", amount: "1500000.50" },
+        { txn_date: "2026-10-02", description: "Pago proveedor", reference: null, amount: "-850000.00" },
+        { txn_date: "2026-10-03", description: "Comisión", reference: null, amount: "-12000" }] });
+    render(<StatementImport banks={[{ value: 2, label: "Bancolombia" }]} onClose={vi.fn()} onDone={vi.fn()} />);
+    const file = new File(["x"], "extracto.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("Archivo del extracto"), { target: { files: [file] } });
+    expect(await screen.findByText(/3 movimiento\(s\) leídos del archivo \(CSV\)/)).toBeInTheDocument();
+    expect(screen.getByText("Fila 9: fecha no reconocida")).toBeInTheDocument();
+    expect(post.mock.calls[0][0]).toBe("/accounting/bank-statements/parse");
+    expect(post.mock.calls[0][1]).toBeInstanceOf(FormData);
+    expect(screen.getByDisplayValue("1638000.50")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("2026-10-03")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("extracto.csv")).toBeInTheDocument();
+    const text = (screen.getByLabelText(/Movimientos/) as HTMLTextAreaElement).value;
+    expect(parseStatementLines(text)).toEqual([
+      { txn_date: "2026-10-01", description: "Consignación, cliente", reference: "RC-1", amount: "1500000.50" },
+      { txn_date: "2026-10-02", description: "Pago proveedor", reference: null, amount: "-850000.00" },
+      { txn_date: "2026-10-03", description: "Comisión", reference: null, amount: "-12000" }]);
   });
 });

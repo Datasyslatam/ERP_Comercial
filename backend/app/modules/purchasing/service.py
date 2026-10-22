@@ -438,8 +438,10 @@ def create_supplier_invoice(db: Session, p: Principal, data: dict) -> SupplierIn
         subtotal = money(Decimal(ln["quantity"]) * Decimal(ln["unit_price"]))
         inv.lines.append(SupplierInvoiceLine(line_subtotal=subtotal, **ln))
         calc.append((subtotal, tax))
-    res = compute_taxes(calc, party_withholdings(db, supplier, p.company.is_withholding_agent, "purchases"),
-                        "purchases")
+    # Con la política de retener al pagar, la factura queda sin retenciones y se liquidan en el egreso.
+    withholdings = [] if p.company.setting("withholding_on_payment") else \
+        party_withholdings(db, supplier, p.company.is_withholding_agent, "purchases")
+    res = compute_taxes(calc, withholdings, "purchases")
     for t in res.taxes + res.withholdings:
         inv.taxes.append(SupplierInvoiceTax(tax_id=t.tax.id, base=t.base, rate=t.tax.rate, amount=t.amount,
                                             is_withholding=t.is_withholding))

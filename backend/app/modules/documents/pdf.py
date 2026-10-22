@@ -74,6 +74,10 @@ class DocData:
     fiscal: list[tuple[str, str]] = field(default_factory=list)
     notice: str | None = None  # p. ej. "Documento de PRUEBAS: sin validez fiscal"
     terms: str | None = None
+    # Tabla propia (recibos y egresos): columnas (título, ancho mm, alineación) y filas ya formateadas.
+    # La segunda columna es la descriptiva (se ajusta en varias líneas).
+    columns: list[tuple[str, float, str]] | None = None
+    rows: list[list[str]] | None = None
 
 
 class _Pdf(FPDF):
@@ -131,7 +135,7 @@ def _label_value(pdf: _Pdf, x: float, w: float, label: str, value: str) -> None:
     pdf.set_x(x)
     pdf.set_font("helvetica", "", 9)
     pdf.set_text_color(*NAVY)
-    pdf.multi_cell(w, 4.4, latin(value or "-"), new_x="LEFT", new_y="NEXT")
+    pdf.multi_cell(w, 4.4, latin(value or "-"), align="L", new_x="LEFT", new_y="NEXT")
 
 
 def render(data: DocData) -> bytes:
@@ -164,12 +168,22 @@ def render(data: DocData) -> bytes:
     pdf.set_y(max(left_end, y) + 4)
 
     # Líneas
-    show_disc = any(ln.discount_pct for ln in data.lines)
-    cols = [("Código", 24, "L"), ("Descripción", 72 if show_disc else 86, "L"), ("Cant.", 16, "R"),
-            ("Und", 12, "C"), ("Precio unit.", 24, "R")]
-    if show_disc:
-        cols.append(("Desc. %", 14, "R"))
-    cols.append(("Subtotal", 26, "R"))
+    if data.columns:
+        cols, table = data.columns, data.rows or []
+    else:
+        show_disc = any(ln.discount_pct for ln in data.lines)
+        cols = [("Código", 24, "L"), ("Descripción", 72 if show_disc else 86, "L"), ("Cant.", 16, "R"),
+                ("Und", 12, "C"), ("Precio unit.", 24, "R")]
+        if show_disc:
+            cols.append(("Desc. %", 14, "R"))
+        cols.append(("Subtotal", 26, "R"))
+        table = []
+        for ln in data.lines:
+            values = [ln.code, ln.description, qty(ln.quantity), ln.uom, money(ln.unit_price)]
+            if show_disc:
+                values.append(qty(ln.discount_pct))
+            values.append(money(ln.subtotal))
+            table.append(values)
 
     def head():
         pdf.set_fill_color(*NAVY)
@@ -181,13 +195,9 @@ def render(data: DocData) -> bytes:
 
     head()
     pdf.set_font("helvetica", "", 8.5)
-    for i, ln in enumerate(data.lines):
-        values = [ln.code, ln.description, qty(ln.quantity), ln.uom, money(ln.unit_price)]
-        if show_disc:
-            values.append(qty(ln.discount_pct))
-        values.append(money(ln.subtotal))
+    for i, values in enumerate(table):
         desc_w = cols[1][1]
-        lines_needed = max(1, len(pdf.multi_cell(desc_w, 4.6, latin(ln.description), dry_run=True, output="LINES")))
+        lines_needed = max(1, len(pdf.multi_cell(desc_w, 4.6, latin(values[1]), dry_run=True, output="LINES")))
         h = 4.6 * lines_needed + 1.4
         if pdf.get_y() + h > pdf.h - 22:
             pdf.add_page()

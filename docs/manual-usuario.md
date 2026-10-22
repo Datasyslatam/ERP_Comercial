@@ -32,15 +32,18 @@
 - En el **kardex**, un clic en un movimiento de recepción, despacho, devolución o inspección abre su cadena.
 
 ## Documentos en PDF y envío por correo
-- En la **cotización**, el **pedido**, la **orden de compra** y la **factura o nota** hay dos acciones:
-  *Descargar PDF* y *Enviar por correo*.
+- En la **cotización**, el **pedido**, la **orden de compra**, la **factura o nota** y el **pago** (recibo de caja
+  o comprobante de egreso) hay dos acciones: *Descargar PDF* y *Enviar por correo*.
 - El PDF lleva los datos de la empresa y del tercero, las líneas con descuentos e impuestos, los totales y, en
   facturas, el CUFE / número de control y la autorización de numeración. Mientras se opere con el adaptador
   SANDBOX, la factura indica "Documento de PRUEBAS: sin validez fiscal".
+- El **recibo de caja** (recaudo de cliente) y el **comprobante de egreso** (pago a proveedor) detallan los
+  documentos pagados, las retenciones con su número de comprobante de retención, el IGTF si aplica, el valor en
+  letras y, en egresos, la línea de firma de quien recibe. Un pago anulado se imprime con la marca "ANULADO".
 - *Enviar por correo* propone el correo del cliente o proveedor, el asunto y un mensaje que puede editar; admite
   varios destinatarios y copia. El envío queda en cola y el historial muestra si fue entregado o el error.
 - Solo se envía lo que tiene sentido para el negocio: cotizaciones vigentes (al enviarla pasa a *Enviada*), pedidos
-  confirmados, órdenes de compra aprobadas y facturas emitidas.
+  confirmados, órdenes de compra aprobadas, facturas emitidas y pagos contabilizados (no anulados).
 
 ## Compras
 1. **Solicitud**: Compras → Solicitudes → *Nueva*. Agregue artículos y cantidades → *Enviar*.
@@ -55,7 +58,8 @@
 6. **Factura del proveedor**: Compras → Facturas → *Registrar factura*: seleccione las recepciones
    aceptadas, digite el precio facturado (se valida contra la OC con tolerancia) → *Contabilizar*.
    El sistema calcula IVA y retenciones y crea la cuenta por pagar. Un mismo número de factura del
-   proveedor no puede registrarse dos veces.
+   proveedor no puede registrarse dos veces. Si la empresa practica las retenciones **al pagar** (ver
+   Contabilidad → Pagos y recaudos), la factura se causa sin retenciones y estas se liquidan en el pago.
 7. **Rechazo o anulación de la OC**: el aprobador puede *Rechazar* con motivo; una orden sin recepciones se
    *Anula* con motivo. Mientras está en borrador, *Editar* permite cambiar proveedor, bodega, fechas y líneas.
 - **Recepciones**: listado por periodo y proveedor con lote, vencimiento, cantidades aceptadas, rechazadas y
@@ -152,10 +156,23 @@
   partida. En recaudos puede agregar las **retenciones que practica el cliente** (*+ Retención*, elegir la
   retención, digitar la base y *Calcular*): a la partida se aplica el valor recibido en banco más lo
   retenido. En Venezuela, cobros en divisas de contribuyentes especiales calculan el IGTF.
-- **Pagos y recaudos**: historial con tercero, medio, retenciones y valor; abra uno para ver su trazabilidad
-  o *Anularlo* con motivo (reabre las partidas aplicadas y reversa el comprobante).
-- **Conciliación bancaria**: *Cargar extracto* pegando los movimientos (`AAAA-MM-DD;descripción;referencia;valor`,
-  débitos en negativo) con saldos inicial y final del banco → *Conciliar automáticamente* empareja por valor
+- **Retenciones al pagar a proveedores**: en *Pagar*, *Sugerir según el proveedor* propone las retenciones
+  configuradas para el proveedor sobre la parte que se paga (base proporcional, bases mínimas) y omite las
+  que la factura ya liquidó; el valor pagado se propone neto de retenciones. Cada retención recibe su número
+  de **comprobante de retención** (Colombia `CR-000001`; Venezuela `AAAAMM` + secuencia de 8 dígitos) y se
+  contabiliza en la cuenta de retenciones por pagar. Una misma retención no se practica dos veces sobre la
+  misma factura. Solo aplica si la empresa es agente de retención.
+- **Pagos y recaudos**: historial con tercero, medio, retenciones y valor; abra uno para ver su trazabilidad,
+  descargar o enviar el recibo / comprobante de egreso, o *Anularlo* con motivo (reabre las partidas
+  aplicadas y reversa el comprobante). Quien administra la empresa elige ahí el momento de las
+  **retenciones a proveedores**: *al causar la factura* (por defecto) o *al pagar*; el cambio rige para las
+  facturas que se registren desde entonces.
+- **Conciliación bancaria**: *Cargar extracto* → *Archivo del banco* lee el extracto en **CSV**, **Excel
+  (.xlsx)** u **OFX** (fecha, descripción, referencia y valor, o columnas separadas de débito y crédito; montos
+  en formato local `1.234,56` o internacional) y prellena los movimientos, los saldos inicial y final y la fecha
+  de corte; revise los avisos de filas no reconocidas antes de cargar. También puede pegar los movimientos
+  (`AAAA-MM-DD;descripción;referencia;valor`, débitos en negativo). El saldo inicial más los movimientos debe
+  dar el saldo final. Luego *Conciliar automáticamente* empareja por valor
   y fecha; lo restante se concilia a mano con la partida en libros del mismo valor o se marca *Ignorar*. La
   diferencia la explican las partidas en libros aún no reflejadas por el banco.
 - **Estados financieros**: balance de prueba (con exportación), estado de resultados, balance general, flujo

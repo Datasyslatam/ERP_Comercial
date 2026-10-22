@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
+import { DocumentActions } from "../components/DocumentActions";
 import { TracePanel } from "../components/TracePanel";
 import { ActionButton, Alert, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
-import { download, Json, post, put, qs } from "../lib/api";
+import { download, get, Json, patch, post, put, qs } from "../lib/api";
 import { fmtDate, fmtMoney } from "../lib/format";
 import { useFetch, useLookup, useOptions } from "../lib/hooks";
 import { useSession } from "../lib/session";
@@ -220,10 +221,22 @@ export function PaymentModal({ kind, item, onClose, onDone }: {
 }) {
   const receipt = kind === "receivable";
   const banks = useOptions("/bank-accounts", (x) => `${x.name} (${x.currency})`);
-  const taxes = useFetch<Json>(receipt ? "/taxes?active=true&limit=200" : null);
+  const taxes = useFetch<Json>("/taxes?active=true&limit=200");
   const withholdingTaxes: Json[] = (taxes.data?.items ?? []).filter((t: Json) => String(t.kind).startsWith("withholding")
-    && ["sales", "both"].includes(t.applies_to));
+    && [receipt ? "sales" : "purchases", "both"].includes(t.applies_to));
   const [rows, setRows] = useState<WithholdingRow[]>([]);
+  const [hint, setHint] = useState<string | null>(null);
+  // Al aplicar las sugerencias se rehace el formulario para proponer el valor neto de retenciones.
+  const [formKey, setFormKey] = useState(0);
+  /** Retenciones del proveedor sobre lo que se paga (bases mínimas y retenciones ya hechas en la factura). */
+  const suggest = async () => {
+    const r = await get(`/accounting/payments/withholding-suggestions?open_item_id=${item.open_item_id}&applied=${item.open_amount}`);
+    setRows(r.suggestions.map((s: Json) => ({ tax_id: String(s.tax_id), base: String(s.base), amount: String(s.amount) })));
+    setHint(!r.agent ? "La empresa no está marcada como agente de retención."
+      : r.suggestions.length ? null : r.already_withheld.length ? "La factura ya liquidó sus retenciones al causarse."
+      : "El proveedor no tiene retenciones configuradas o la base no alcanza el mínimo.");
+    setFormKey((k) => k + 1);
+  };
   // Clave fija mientras el formulario esté abierto: un doble envío no duplica el pago.
   const [idempotencyKey] = useState(() => `ui-${item.open_item_id}-${crypto.randomUUID?.() ?? Date.now()}`);
   const whTotal = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
@@ -237,8 +250,10 @@ export function PaymentModal({ kind, item, onClose, onDone }: {
   return (
     <Modal title={`${receipt ? "Recaudo" : "Pago"} de ${item.document}`} onClose={onClose}>
       <p>Saldo de la partida: <strong>{fmtMoney(item.open_amount, item.currency)}</strong></p>
-      {receipt && <>
-        <h3>Retenciones practicadas por el cliente</h3>
+      <>
+        <h3>{receipt ? "Retenciones practicadas por el cliente" : "Retenciones que practica la empresa"}</h3>
+        {!receipt && <p className="row"><ActionButton className="secondary" onClick={suggest}>Sugerir según el proveedor</ActionButton>
+          {hint && <span className="muted">{hint}</span>}</p>}
         <table className="lines"><tbody>{rows.map((r, i) => <tr key={i}>
           <td><select aria-label="Retención" value={r.tax_id} onChange={(e) => setRow(i, { tax_id: e.target.value })}>
             <option value="">—</option>{withholdingTaxes.map((t) => <option key={t.id} value={t.id}>{t.code} · {t.name}</option>)}</select></td>
@@ -248,12 +263,14 @@ export function PaymentModal({ kind, item, onClose, onDone }: {
             <button type="button" className="secondary" aria-label="Quitar retención" onClick={() => setRows(rows.filter((_, j) => j !== i))}>✕</button></td>
         </tr>)}</tbody></table>
         <button type="button" className="secondary" onClick={() => setRows([...rows, { tax_id: "", base: "", amount: "" }])}>+ Retención</button>
-        <p className="muted">Total retenido {fmtMoney(whTotal)}. El valor recibido en banco más las retenciones se aplica a la partida.</p>
-      </>}
-      <Form initial={{ payment_date: today(), amount: item.open_amount, method: "transfer" }} fields={[
+        <p className="muted">Total retenido {fmtMoney(whTotal)}. {receipt
+          ? "El valor recibido en banco más las retenciones se aplica a la partida."
+          : "Se paga el saldo menos las retenciones; cada retención genera su comprobante para el proveedor."}</p>
+      </>
+      <Form key={formKey} initial={{ payment_date: today(), amount: cashDefault, method: "transfer" }} fields={[
         { name: "bank_account_id", label: "Cuenta bancaria", type: "select", required: true, options: banks },
         { name: "payment_date", label: "Fecha", type: "date", required: true },
-        { name: "amount", label: receipt ? `Valor recibido en banco (sugerido: saldo − retenciones = ${cashDefault})` : "Valor pagado",
+        { name: "amount", label: `${receipt ? "Valor recibido en banco" : "Valor pagado"} (sugerido: saldo − retenciones = ${cashDefault})`,
           type: "number", required: true },
         { name: "method", label: "Medio", type: "select", options: ["transfer", "cash", "check", "card", "mobile_payment"].map((v) => ({ value: v, label: v })) },
         { name: "reference", label: "Referencia" }]}
@@ -279,9 +296,10 @@ export function PaymentsPage() {
   const [current, setCurrent] = useState<Json | null>(null);
   const [voiding, setVoiding] = useState(false);
   return (
-    <Page title="Pagos y recaudos" subtitle="Movimientos de tesorería aplicados a facturas, con retenciones e IGTF" actions={
+    <Page title="Pagos y recaudos" subtitle="Movimientos de tesorería aplicados a facturas, con retenciones e IGTF" actions={<>
+      {can("admin.company.admin") && <WithholdingPolicy />}
       <select aria-label="Tipo" value={kind} onChange={(e) => setKind(e.target.value)}><option value="">Todos</option>
-        <option value="receipt">Recaudos de clientes</option><option value="disbursement">Pagos a proveedores</option></select>}>
+        <option value="receipt">Recaudos de clientes</option><option value="disbursement">Pagos a proveedores</option></select></>}>
       <DataTable rows={data?.items} onRowClick={setCurrent} columns={[{ key: "number", title: "Número" }, { key: "payment_date", title: "Fecha" },
         { key: "kind", title: "Tipo", render: (r) => r.kind === "receipt" ? "Recaudo" : "Pago" },
         { key: "party_id", title: "Tercero", render: (r) => partyName(r.party_id) }, { key: "method", title: "Medio" },
@@ -296,6 +314,8 @@ export function PaymentsPage() {
           ? <Form submitLabel="Anular pago" fields={[{ name: "reason", label: "Motivo de la anulación", type: "textarea", required: true }]}
               onSubmit={async (d) => { await post(`/accounting/payments/${current.id}/void`, d); setCurrent(null); setVoiding(false); reload(); }} />
           : <p><button className="danger" onClick={() => setVoiding(true)}>Anular</button> <span className="muted">Reabre las partidas aplicadas y reversa el comprobante.</span></p>)}
+        <p className="row"><DocumentActions type="payment" id={current.id} number={current.number}
+          canSend={current.status === "posted" && can("accounting.payments.create")} /></p>
         <h3>Trazabilidad</h3>
         <TracePanel type="payment" id={current.id} />
       </Modal>}
@@ -336,17 +356,40 @@ export function BankReconciliationPage() {
   );
 }
 
-function StatementImport({ banks, onClose, onDone }: { banks: { value: number; label: string }[]; onClose: () => void; onDone: (id: number) => void }) {
+export function StatementImport({ banks, onClose, onDone }: { banks: { value: number; label: string }[]; onClose: () => void; onDone: (id: number) => void }) {
   const [text, setText] = useState("");
+  const [parsed, setParsed] = useState<Json | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const lines = parseStatementLines(text);
   const total = lines.reduce((s, l) => s + Number(l.amount), 0);
+  const readFile = async (file: File | undefined) => {
+    if (!file) return;
+    setFileError(null);
+    const body = new FormData();
+    body.append("file", file);
+    try {
+      const r = await post("/accounting/bank-statements/parse", body);
+      setText(r.lines.map((l: Json) => [l.txn_date, String(l.description).replace(/[;\t]/g, ","), String(l.reference ?? "").replace(/[;\t]/g, ","), l.amount].join(";")).join("\n"));
+      setParsed({ ...r, source_filename: file.name });
+    } catch (e) {
+      setFileError((e as Error).message);
+    }
+  };
   return (
     <Modal title="Cargar extracto bancario" onClose={onClose}>
+      <label className="span-2"><span>Archivo del banco (CSV, Excel .xlsx u OFX)</span>
+        <input aria-label="Archivo del extracto" type="file" accept=".csv,.txt,.xlsx,.ofx,.qfx" onChange={(e) => readFile(e.target.files?.[0])} /></label>
+      <Alert>{fileError}</Alert>
+      {parsed && <Alert kind={parsed.warnings.length ? "warning" : "ok"}>
+        {parsed.lines.length} movimiento(s) leídos del archivo ({String(parsed.format).toUpperCase()}). Revíselos abajo antes de cargar.
+        {parsed.warnings.length > 0 && <ul>{parsed.warnings.slice(0, 6).map((w: string) => <li key={w}>{w}</li>)}</ul>}</Alert>}
       <label className="span-2"><span>Movimientos (una línea por movimiento: AAAA-MM-DD;descripción;referencia;valor — débitos con signo negativo)</span>
         <textarea aria-label="Movimientos del extracto" rows={8} value={text} onChange={(e) => setText(e.target.value)}
           placeholder={"2026-10-01;Consignación cliente;RC-000001;1500000\n2026-10-02;Pago proveedor;CE-000004;-850000"} /></label>
       <p className="muted">{lines.length} movimiento(s) reconocidos · neto {fmtMoney(total)}</p>
-      <Form fields={[{ name: "bank_account_id", label: "Cuenta bancaria", type: "select", required: true, options: banks },
+      <Form key={parsed?.source_filename ?? "manual"} initial={parsed ? { statement_date: parsed.statement_date ?? "",
+          opening_balance: parsed.opening_balance ?? "", closing_balance: parsed.closing_balance ?? "", source_filename: parsed.source_filename } : {}}
+        fields={[{ name: "bank_account_id", label: "Cuenta bancaria", type: "select", required: true, options: banks },
         { name: "statement_date", label: "Fecha de corte", type: "date", required: true },
         { name: "opening_balance", label: "Saldo inicial según banco", type: "number", required: true },
         { name: "closing_balance", label: "Saldo final según banco", type: "number", required: true },
@@ -416,5 +459,18 @@ function EntryModal({ id, accounts, onClose }: { id: number; accounts: { value: 
       <h3>Trazabilidad</h3>
       <TracePanel type="journal_entry" id={id} />
     </Modal>
+  );
+}
+
+/** Política de la empresa: practicar las retenciones a proveedores al causar la factura o al pagar. */
+function WithholdingPolicy() {
+  const { data, reload } = useFetch<Json>("/company");
+  if (!data) return null;
+  const onPayment = !!data.settings?.withholding_on_payment;
+  return (
+    <label className="row muted" title="Aplica a las facturas de proveedor que se registren desde ahora">Retenciones a proveedores:
+      <select aria-label="Momento de la retención" value={onPayment ? "payment" : "invoice"}
+        onChange={async (e) => { await patch("/company/settings", { settings: { withholding_on_payment: e.target.value === "payment" } }); reload(); }}>
+        <option value="invoice">al causar la factura</option><option value="payment">al pagar</option></select></label>
   );
 }

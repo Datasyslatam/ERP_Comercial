@@ -22,6 +22,8 @@ DEFAULT_COMPANY_SETTINGS = {
     "reservation_strategy": "FEFO",
     # Presupuesto de compras: "warn" (advierte) o "block" (impide aprobar)
     "purchase_budget_control": "warn",
+    # Retenciones a proveedores: False = al causar la factura; True = al pagar (comprobante de egreso)
+    "withholding_on_payment": False,
 }
 
 

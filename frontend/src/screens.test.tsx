@@ -54,10 +54,11 @@ describe("Recaudo con retenciones", () => {
     expect(body.idempotency_key).toMatch(/^ui-11-/);
   });
 
-  it("un pago a proveedor no ofrece retenciones", () => {
+  it("un pago a proveedor ofrece las retenciones que practica la empresa", () => {
     render(<PaymentModal kind="payable" onClose={vi.fn()} onDone={vi.fn()}
       item={{ open_item_id: 2, party_id: 3, document: "FE-1", currency: "COP", open_amount: "10" }} />);
-    expect(screen.queryByText("+ Retención")).not.toBeInTheDocument();
+    expect(screen.getByText("Retenciones que practica la empresa")).toBeInTheDocument();
+    expect(screen.getByText("Sugerir según el proveedor")).toBeInTheDocument();
   });
 });
 

@@ -163,12 +163,15 @@ def register_payment(db: Session, p: Principal, data: dict) -> Payment:
                   amount=money(data["amount"]), reference=data.get("reference"),
                   idempotency_key=data["idempotency_key"], created_by_id=p.user_id)
     wh_total = ZERO
+    side = "sales" if kind == "receipt" else "purchases"
     for w in data.get("withholdings") or []:
-        if kind != "receipt":
-            raise BusinessRuleViolation("Las retenciones en pagos a proveedores se liquidan en la factura")
         tax = get_owned(db, Tax, w["tax_id"], p.company_id)
         if not tax.is_withholding:
             raise BusinessRuleViolation(f"{tax.code} no es una retención")
+        if tax.applies_to not in (side, "both"):
+            raise BusinessRuleViolation(f"La retención {tax.code} no aplica a {'ventas' if side == 'sales' else 'compras'}")
+        if kind == "disbursement" and not p.company.is_withholding_agent:
+            raise BusinessRuleViolation("La empresa no es agente de retención")
         amount = money(w["amount"])
         pay.withholdings.append(PaymentWithholding(tax_id=tax.id, base=money(w.get("base") or 0), amount=amount))
         wh_total += amount
@@ -191,6 +194,10 @@ def register_payment(db: Session, p: Principal, data: dict) -> Payment:
         pay.allocations.append(PaymentAllocation(open_item_id=item.id, amount=amount))
         allocations.append((item, amount))
         alloc_total += amount
+    if kind == "disbursement" and pay.withholdings:
+        _check_not_withheld(db, [it for it, _ in allocations], [w.tax_id for w in pay.withholdings])
+        for w in pay.withholdings:
+            w.certificate_number = withholding_certificate_number(db, p, pay.payment_date)
     if alloc_total != pay.amount + wh_total:
         raise BusinessRuleViolation("La suma aplicada debe ser igual al pago más las retenciones",
                                     details={"applied": str(alloc_total), "payment": str(pay.amount),
@@ -469,3 +476,56 @@ def cash_flow(db: Session, company_id: int, start: date, end: date) -> dict:
     return {"start": start, "end": end, "opening_cash": Decimal(opening), "operating": items, "net_change": net,
             "closing_cash": Decimal(opening) + net,
             "note": "Clasificación operativa; inversión y financiación requieren marcar cuentas (cash_flow_activity)."}
+
+
+def withholding_certificate_number(db: Session, p: Principal, on: date) -> str:
+    """Comprobante de retención al proveedor. Venezuela: AAAAMM + secuencia de 8 dígitos (formato SENIAT);
+    Colombia: consecutivo interno CR-000001 (el certificado anual se expide aparte)."""
+    seq = next_number(db, p.company_id, "withholding_certificate")
+    if p.company.country_code == "VE":
+        return f"{on:%Y%m}{int(seq.rsplit('-', 1)[-1]):08d}"
+    return seq
+
+
+def _check_not_withheld(db: Session, items: list, tax_ids: list[int]) -> None:
+    """Evita la doble retención: una factura de proveedor que ya liquidó esa retención no la repite en el pago."""
+    from app.modules.purchasing.models import SupplierInvoice, SupplierInvoiceTax
+
+    invoice_ids = [it.document_id for it in items if it.document_type == "supplier_invoice"]
+    if not invoice_ids:
+        return
+    dup = db.execute(select(SupplierInvoice.supplier_invoice_number, Tax.code)
+                     .join(SupplierInvoiceTax, SupplierInvoiceTax.invoice_id == SupplierInvoice.id)
+                     .join(Tax, Tax.id == SupplierInvoiceTax.tax_id)
+                     .where(SupplierInvoice.id.in_(invoice_ids), SupplierInvoiceTax.is_withholding.is_(True),
+                            SupplierInvoiceTax.tax_id.in_(tax_ids))).first()
+    if dup:
+        raise BusinessRuleViolation(f"La factura {dup[0]} ya tiene la retención {dup[1]}; no se retiene dos veces")
+
+
+def withholding_suggestions(db: Session, p: Principal, open_item_id: int, applied: Decimal) -> dict:
+    """Retenciones que corresponde practicar al pagar una partida por pagar, proporcionales al valor aplicado.
+
+    Usa las retenciones configuradas en el proveedor, las bases mínimas y, si la partida es una factura de
+    proveedor, sus líneas con IVA (para la retención de IVA). Omite las que la factura ya liquidó."""
+    from app.modules.masters.service import compute_taxes, party_withholdings
+    from app.modules.purchasing.models import SupplierInvoice, SupplierInvoiceTax
+
+    item = db.get(OpenItem, open_item_id)
+    if item is None or item.company_id != p.company_id or item.kind != "payable":
+        raise BusinessRuleViolation("La partida no es una cuenta por pagar de la empresa")
+    party = db.get(Party, item.party_id)
+    taxes = party_withholdings(db, party, p.company.is_withholding_agent, "purchases")
+    ratio = min(Decimal(applied) / item.original_amount, Decimal("1")) if item.original_amount else Decimal("1")
+    already: set[int] = set()
+    if item.document_type == "supplier_invoice":
+        inv = db.get(SupplierInvoice, item.document_id)
+        already = set(db.scalars(select(SupplierInvoiceTax.tax_id).where(
+            SupplierInvoiceTax.invoice_id == inv.id, SupplierInvoiceTax.is_withholding.is_(True))))
+        lines = [(ln.line_subtotal * ratio, db.get(Tax, ln.tax_id) if ln.tax_id else None) for ln in inv.lines]
+    else:
+        lines = [(Decimal(applied), None)]
+    res = compute_taxes(lines, [t for t in taxes if t.id not in already], "purchases")
+    return {"agent": p.company.is_withholding_agent, "already_withheld": sorted(already),
+            "suggestions": [{"tax_id": w.tax.id, "code": w.tax.code, "name": w.tax.name, "rate": w.tax.rate,
+                             "base": w.base, "amount": w.amount} for w in res.withholdings]}
