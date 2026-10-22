@@ -460,8 +460,18 @@ def post_supplier_invoice_doc(db: Session, p: Principal, inv_id: int) -> Supplie
         return inv  # idempotente
     if inv.status != "draft":
         raise Conflict("La factura no está en borrador")
+    if p.company.country_code == "VE" and not inv.supplier_control_number:
+        raise BusinessRuleViolation("Registre el número de control de la factura del proveedor (libro de compras)")
     entry = post_supplier_invoice(db, inv, p.user_id)
     inv.status, inv.journal_entry_id, inv.posted_by_id = "posted", entry.id, p.user_id
+    # Retención practicada al causar (abono en cuenta): su comprobante nace con la contabilización.
+    from app.modules.accounting.service import withholding_certificate_number
+
+    taxes ={t.id: t for t in db.scalars(select(Tax).where(Tax.id.in_([x.tax_id for x in inv.taxes])))}
+    for t in inv.taxes:
+        if t.is_withholding and not t.certificate_number:
+            t.certificate_date = date.today()
+            t.certificate_number = withholding_certificate_number(db, p, t.certificate_date, taxes[t.tax_id])
     db.add(OpenItem(company_id=p.company_id, kind="payable", party_id=inv.supplier_id, document_type="supplier_invoice",
                     document_id=inv.id, document_number=inv.supplier_invoice_number, issue_date=inv.invoice_date,
                     due_date=inv.due_date, currency=inv.currency, exchange_rate=inv.exchange_rate,

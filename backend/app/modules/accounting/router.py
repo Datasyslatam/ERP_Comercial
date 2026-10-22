@@ -79,6 +79,8 @@ class WithholdingIn(BaseModel):
     tax_id: int
     base: Decimal = Field(default=Decimal("0"), ge=0)
     amount: Decimal = Field(gt=0)
+    # Recaudos: número del comprobante de retención que entrega el cliente
+    certificate_number: str | None = Field(default=None, max_length=30)
 
 
 class PaymentIn(BaseModel):

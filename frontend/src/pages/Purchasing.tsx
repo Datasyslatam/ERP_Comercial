@@ -227,7 +227,8 @@ export function OrderDetailPage() {
 }
 
 export function SupplierInvoicesPage() {
-  const { can } = useSession();
+  const { can, company } = useSession();
+  const ve = company?.country === "VE";
   const { data, reload } = useFetch<Json>("/purchasing/invoices");
   const receipts = useFetch<Json>("/purchasing/receipts?limit=100");
   const itemName = useItemNames();
@@ -252,9 +253,11 @@ export function SupplierInvoicesPage() {
             { key: "item_id", title: "Artículo", render: (r) => itemName(r.item_id) }, { key: "qty", title: "Pendiente", align: "right", render: (r) => fmtNumber(Number(r.qty_accepted) - Number(r.qty_invoiced)) },
             { key: "price", title: "Precio facturado", render: (r) => <input type="number" step="any" aria-label="Precio facturado"
               value={selected[r.id] ?? ""} onChange={(e) => setSelected({ ...selected, [r.id]: e.target.value })} /> }]} />
-          <Form initial={{ invoice_date: today(), currency: "COP" }} fields={[
+          <Form initial={{ invoice_date: today(), currency: company?.currency ?? "COP" }} fields={[
             { name: "supplier_id", label: "Proveedor", type: "select", required: true, options: suppliers },
-            { name: "supplier_invoice_number", label: "Número de factura", required: true }, { name: "supplier_cufe", label: "CUFE del proveedor" },
+            { name: "supplier_invoice_number", label: "Número de factura", required: true },
+            ve ? { name: "supplier_control_number", label: "Número de control (libro de compras)", required: true }
+              : { name: "supplier_cufe", label: "CUFE del proveedor" },
             { name: "invoice_date", label: "Fecha", type: "date", required: true }, { name: "currency", label: "Moneda", required: true }]}
             onSubmit={async (d) => {
               const lines = pending.filter((l: Json) => selected[l.id]).map((l: Json) => ({ receipt_line_id: l.id, description: `Recepción ${l.receipt_number}`,

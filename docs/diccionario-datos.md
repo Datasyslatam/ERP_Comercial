@@ -725,6 +725,7 @@ Impuesto o retención parametrizable. Las tarifas deben validarse con el asesor 
 | `supplier_id` | BIGINT | no |  | parties.id |
 | `supplier_invoice_number` | VARCHAR(60) | no |  |  |
 | `supplier_cufe` | VARCHAR(120) | sí |  |  |
+| `supplier_control_number` | VARCHAR(40) | sí |  |  |
 | `purchase_order_id` | BIGINT | sí |  | purchase_orders.id |
 | `invoice_date` | DATE | no |  |  |
 | `due_date` | DATE | no |  |  |
@@ -782,6 +783,8 @@ Impuesto o retención parametrizable. Las tarifas deben validarse con el asesor 
 | `rate` | NUMERIC(18, 6) | no |  |  |
 | `amount` | NUMERIC(18, 2) | no |  |  |
 | `is_withholding` | BOOLEAN | no | False |  |
+| `certificate_number` | VARCHAR(30) | sí |  |  |
+| `certificate_date` | DATE | sí |  |  |
 | `id` (PK) | BIGINT | no |  |  |
 
 - Índice `ix_supplier_invoice_taxes_invoice_id`: (supplier_invoice_taxes.invoice_id)
@@ -1079,8 +1082,8 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 - Índice `ix_inspections_item_id`: (inspections.item_id)
 - Índice `ix_inspections_source`: (inspections.source_type, inspections.source_id)
 - Índice `ix_inspections_supplier_id`: (inspections.supplier_id)
-- Verificación `ck_inspections_qty_nonneg`: `qty_accepted >= 0 and qty_rejected >= 0`
 - Verificación `ck_inspections_status_valid`: `status in ('pending','accepted','rejected','partial','cancelled')`
+- Verificación `ck_inspections_qty_nonneg`: `qty_accepted >= 0 and qty_rejected >= 0`
 
 ### `inspection_results`
 
@@ -1130,8 +1133,8 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 - Índice `ix_nonconformities_company_id`: (nonconformities.company_id)
 - Índice `ix_nonconformities_item_id`: (nonconformities.item_id)
 - Índice `ix_nonconformities_supplier_id`: (nonconformities.supplier_id)
-- Verificación `ck_nonconformities_severity_valid`: `severity in ('minor','major','critical')`
 - Verificación `ck_nonconformities_source_valid`: `source in ('inspection','customer','internal','supplier','delivery','production')`
+- Verificación `ck_nonconformities_severity_valid`: `severity in ('minor','major','critical')`
 - Verificación `ck_nonconformities_status_valid`: `status in ('open','analysis','action','verification','closed')`
 
 ### `capa_actions`
@@ -1151,8 +1154,8 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 | `updated_at` | DATETIME | no | now() |  |
 
 - Índice `ix_capa_actions_nonconformity_id`: (capa_actions.nonconformity_id)
-- Verificación `ck_capa_actions_status_valid`: `status in ('open','done','verified','cancelled')`
 - Verificación `ck_capa_actions_type_valid`: `action_type in ('containment','corrective','preventive')`
+- Verificación `ck_capa_actions_status_valid`: `status in ('open','done','verified','cancelled')`
 
 ## Ventas y logística
 
@@ -1209,9 +1212,9 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 - Única: (sales_order_id, line_no)
 - Índice `ix_sales_order_lines_item_id`: (sales_order_lines.item_id)
 - Índice `ix_sales_order_lines_sales_order_id`: (sales_order_lines.sales_order_id)
-- Verificación `ck_sales_order_lines_values_valid`: `quantity > 0 and unit_price >= 0`
 - Verificación `ck_sales_order_lines_discount_valid`: `discount_pct >= 0 and discount_pct <= 100`
 - Verificación `ck_sales_order_lines_dispatch_within_qty`: `qty_dispatched <= quantity`
+- Verificación `ck_sales_order_lines_values_valid`: `quantity > 0 and unit_price >= 0`
 
 ### `delivery_routes`
 
@@ -2179,8 +2182,8 @@ Descuento porcentual con vigencia para un artículo, una categoría o todo el ca
 
 - Única: (quote_id, line_no)
 - Índice `ix_sales_quote_lines_quote_id`: (sales_quote_lines.quote_id)
-- Verificación `ck_sales_quote_lines_discount_valid`: `discount_pct >= 0 and discount_pct <= 100`
 - Verificación `ck_sales_quote_lines_values_valid`: `quantity > 0 and unit_price >= 0`
+- Verificación `ck_sales_quote_lines_discount_valid`: `discount_pct >= 0 and discount_pct <= 100`
 
 ### `sales_quotes`
 

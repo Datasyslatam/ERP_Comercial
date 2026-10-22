@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import { AlertsPage, BankReconciliationPage, EntriesPage, GoalsBudgetsPage, PaymentsPage, PeriodsPage, ReceivablesPage,
   ReportsPage } from "./pages/Accounting";
 import { Dashboard } from "./pages/Dashboard";
+import { FiscalPage } from "./pages/Fiscal";
 import { CountsPage, ExpiringPage, InventoryDocumentsPage, KardexPage, ReplenishmentPage, StockPage } from "./pages/Inventory";
 import { Login } from "./pages/Login";
 import { AccountsPage, ItemsPage, NumberingPage, PartiesPage, TaxesPage, WarehousesPage } from "./pages/Masters";
@@ -71,6 +72,7 @@ function Routed() {
         <Route path="contabilidad/cartera" element={<ReceivablesPage />} />
         <Route path="contabilidad/pagos" element={<PaymentsPage />} />
         <Route path="contabilidad/conciliacion" element={<BankReconciliationPage />} />
+        <Route path="contabilidad/fiscal" element={<FiscalPage />} />
         <Route path="contabilidad/periodos" element={<PeriodsPage />} />
         <Route path="maestros/terceros" element={<PartiesPage />} />
         <Route path="maestros/articulos" element={<ItemsPage />} />

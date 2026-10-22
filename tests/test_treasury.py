@@ -75,12 +75,16 @@ def test_venezuela_withholding_certificate_format(env, client):
         from app.core.deps import Principal
         from app.modules.accounting.service import withholding_certificate_number
         from app.modules.iam.models import User
+        from app.modules.masters.models import Tax
 
         user = db.query(User).first()
         p = Principal(user=user, company=ve)
-        first = withholding_certificate_number(db, p, TODAY)
-        second = withholding_certificate_number(db, p, TODAY)
-    assert first == f"{TODAY:%Y%m}00000001" and second == f"{TODAY:%Y%m}00000002"
+        riva, islr = (db.query(Tax).filter_by(company_id=ve.id, code=code).one() for code in ("RIVA75", "RISLR2"))
+        first = withholding_certificate_number(db, p, TODAY, riva)
+        other = withholding_certificate_number(db, p, TODAY, islr)
+        second = withholding_certificate_number(db, p, TODAY, riva)
+    # IVA: formato SENIAT con secuencia propia; ISLR: consecutivo interno que no se confunde con el de IVA
+    assert (first, second, other) == (f"{TODAY:%Y%m}00000001", f"{TODAY:%Y%m}00000002", "CR-000001")
 
 
 CSV_LOCAL = """Banco de Pruebas S.A.

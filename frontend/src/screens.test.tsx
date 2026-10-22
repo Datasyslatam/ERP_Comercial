@@ -42,13 +42,14 @@ describe("Recaudo con retenciones", () => {
     await screen.findByRole("option", { name: /Banco principal/ });
     fireEvent.change(screen.getByLabelText(/Cuenta bancaria/), { target: { value: "4" } });
     fireEvent.change(screen.getByLabelText(/Valor recibido en banco/), { target: { value: "975" } });
+    fireEvent.change(screen.getByLabelText("Comprobante del cliente"), { target: { value: " 20261000000077 " } });
     fireEvent.click(screen.getByText("Guardar"));
     await waitFor(() => expect(done).toHaveBeenCalled());
     const [path, body] = post.mock.calls[0];
     expect(path).toBe("/accounting/payments");
     expect(body).toMatchObject({
       kind: "receipt", party_id: 3, bank_account_id: 4, amount: "975", currency: "COP",
-      withholdings: [{ tax_id: 5, base: "1000", amount: "25.00" }],
+      withholdings: [{ tax_id: 5, base: "1000", amount: "25.00", certificate_number: "20261000000077" }],
       allocations: [{ open_item_id: 11, amount: "1000.00" }],
     });
     expect(body.idempotency_key).toMatch(/^ui-11-/);

@@ -212,6 +212,7 @@ class SupplierInvoice(IdMixin, CompanyMixin, TimestampMixin, Base):
     supplier_id: Mapped[int] = mapped_column(ForeignKey("parties.id"), index=True)
     supplier_invoice_number: Mapped[str] = mapped_column(String(60))
     supplier_cufe: Mapped[str | None] = mapped_column(String(120))
+    supplier_control_number: Mapped[str | None] = mapped_column(String(40))  # Número de control (VE)
     purchase_order_id: Mapped[int | None] = mapped_column(ForeignKey("purchase_orders.id"))
     invoice_date: Mapped[date] = mapped_column(Date)
     due_date: Mapped[date] = mapped_column(Date)
@@ -259,3 +260,6 @@ class SupplierInvoiceTax(IdMixin, Base):
     rate: Mapped[Decimal] = mapped_column(Qty)
     amount: Mapped[Decimal]
     is_withholding: Mapped[bool] = mapped_column(default=False)
+    # Retención practicada al causar: comprobante que se entrega al proveedor y fecha en que se practicó
+    certificate_number: Mapped[str | None] = mapped_column(String(30))
+    certificate_date: Mapped[date | None] = mapped_column(Date)

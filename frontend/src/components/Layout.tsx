@@ -58,6 +58,7 @@ export const NAV: { section: string; items: NavItem[] }[] = [
     { to: "/contabilidad/cartera", label: "Cartera por edades", perm: "accounting.payments.read" },
     { to: "/contabilidad/pagos", label: "Pagos y recaudos", perm: "accounting.payments.read" },
     { to: "/contabilidad/conciliacion", label: "Conciliación bancaria", perm: "accounting.bank.read" },
+    { to: "/contabilidad/fiscal", label: "Libros y reportes fiscales", perm: "accounting.tax_reports.read" },
     { to: "/contabilidad/periodos", label: "Periodos contables", perm: "accounting.period.read" },
   ] },
   { section: "Datos maestros", items: [

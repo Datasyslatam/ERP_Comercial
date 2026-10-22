@@ -19,6 +19,7 @@
 | Área | Rutas principales |
 |---|---|
 | Precios y promociones | `/sales/price-lists` (+ `/items`, `/customers`), `/sales/promotions`, `/sales/pricing` (consulta) |
+| Libros y reportes fiscales | `/fiscal/ve/sales-book` y `/fiscal/ve/purchase-book` (+`.xlsx`), `/fiscal/ve/vat-withholdings` (+`/{número}/pdf`, `.txt?year&month&half`), `/fiscal/co/vat-auxiliary` (+`.xlsx`), `/fiscal/co/withholding-certificates?kind=income\|vat\|ica` (+`/{tercero}/pdf`) |
 | Documentos comerciales | `/documents/{tipo}/{id}/pdf`, `/email`, `/email-defaults`, `/emails` (cotización, pedido, OC, factura, pago: recibo de caja / comprobante de egreso) |
 | Trazabilidad | `/trace/{tipo}/{id}` (cadena documental entre módulos), `/trace/search?q=` |
 | Autenticación y administración | `/auth/*`, `/admin/users` (ficha, roles, contraseña, desbloqueo, sesiones), `/admin/roles`, `/admin/permissions`, `/admin/access-review`, `/admin/audit` (+ `export.csv`), `/admin/login-attempts` |
