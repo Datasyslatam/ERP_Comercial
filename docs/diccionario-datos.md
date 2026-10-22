@@ -377,6 +377,7 @@ Tercero: cliente, proveedor y/o transportista.
 | `country_code` | VARCHAR(2) | no | CO |  |
 | `payment_term_id` | BIGINT | sí |  | payment_terms.id |
 | `credit_limit` | NUMERIC(18, 2) | no | 0 |  |
+| `price_list_id` | BIGINT | sí |  | price_lists.id |
 | `is_active` | BOOLEAN | no | True |  |
 | `id` (PK) | BIGINT | no |  |  |
 | `created_at` | DATETIME | no | now() |  |
@@ -1201,6 +1202,8 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 | `qty_dispatched` | NUMERIC(18, 6) | no | 0 |  |
 | `qty_invoiced` | NUMERIC(18, 6) | no | 0 |  |
 | `qty_returned` | NUMERIC(18, 6) | no | 0 |  |
+| `price_source` | VARCHAR(12) | sí |  |  |
+| `promotion_id` | BIGINT | sí |  | promotions.id |
 | `id` (PK) | BIGINT | no |  |  |
 
 - Única: (sales_order_id, line_no)
@@ -1432,9 +1435,9 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 
 - Única: (company_id, number)
 - Índice `ix_work_orders_company_id`: (work_orders.company_id)
-- Verificación `ck_work_orders_qty_nonneg`: `planned_qty >= 0 and produced_qty >= 0 and scrap_qty >= 0 and rework_qty >= 0`
 - Verificación `ck_work_orders_status_valid`: `status in ('draft','released','in_progress','completed','closed','cancelled')`
 - Verificación `ck_work_orders_type_valid`: `wo_type in ('production','service','maintenance')`
+- Verificación `ck_work_orders_qty_nonneg`: `planned_qty >= 0 and produced_qty >= 0 and scrap_qty >= 0 and rework_qty >= 0`
 
 ### `work_order_materials`
 
@@ -2089,6 +2092,74 @@ Cada envío queda registrado con destinatarios, asunto, estado y error; el PDF s
 - Índice `ix_document_emails_doc`: (document_emails.doc_type, document_emails.doc_id)
 - Verificación `ck_document_emails_status_valid`: `status in ('queued','sent','failed')`
 
+### `price_list_items`
+
+Precio de un artículo en la lista; varios tramos por cantidad mínima permiten descuentos por volumen.
+
+| Columna | Tipo | Nulo | Por defecto | Referencia |
+|---|---|---|---|---|
+| `price_list_id` | BIGINT | no |  | price_lists.id |
+| `item_id` | BIGINT | no |  | items.id |
+| `min_qty` | NUMERIC(18, 6) | no | 1 |  |
+| `unit_price` | NUMERIC(18, 6) | no |  |  |
+| `id` (PK) | BIGINT | no |  |  |
+
+- Única: (price_list_id, item_id, min_qty)
+- Índice `ix_price_list_items_item_id`: (price_list_items.item_id)
+- Índice `ix_price_list_items_price_list_id`: (price_list_items.price_list_id)
+- Verificación `ck_price_list_items_values_valid`: `unit_price >= 0 and min_qty > 0`
+
+### `price_lists`
+
+Lista de precios de venta por moneda y vigencia. Se asigna a clientes; una puede ser la predeterminada.
+
+| Columna | Tipo | Nulo | Por defecto | Referencia |
+|---|---|---|---|---|
+| `code` | VARCHAR(30) | no |  |  |
+| `name` | VARCHAR(120) | no |  |  |
+| `currency` | VARCHAR(3) | no |  | currencies.code |
+| `valid_from` | DATE | no |  |  |
+| `valid_to` | DATE | sí |  |  |
+| `is_default` | BOOLEAN | no | False |  |
+| `is_active` | BOOLEAN | no | True |  |
+| `notes` | TEXT | sí |  |  |
+| `id` (PK) | BIGINT | no |  |  |
+| `company_id` | BIGINT | no |  | companies.id |
+| `created_at` | DATETIME | no | now() |  |
+| `updated_at` | DATETIME | no | now() |  |
+
+- Única: (company_id, code)
+- Índice `ix_price_lists_company_id`: (price_lists.company_id)
+- Índice único `uq_price_lists_default`: (price_lists.company_id, price_lists.currency)
+- Verificación `ck_price_lists_validity_valid`: `valid_to is null or valid_to >= valid_from`
+
+### `promotions`
+
+Descuento porcentual con vigencia para un artículo, una categoría o todo el catálogo, con cantidad mínima y cliente opcionales. Se aplica cuando la línea no trae descuento manual; si varias aplican, gana la mayor.
+
+| Columna | Tipo | Nulo | Por defecto | Referencia |
+|---|---|---|---|---|
+| `code` | VARCHAR(30) | no |  |  |
+| `name` | VARCHAR(120) | no |  |  |
+| `discount_pct` | NUMERIC(18, 6) | no |  |  |
+| `valid_from` | DATE | no |  |  |
+| `valid_to` | DATE | no |  |  |
+| `item_id` | BIGINT | sí |  | items.id |
+| `category_id` | BIGINT | sí |  | item_categories.id |
+| `customer_id` | BIGINT | sí |  | parties.id |
+| `min_qty` | NUMERIC(18, 6) | sí |  |  |
+| `is_active` | BOOLEAN | no | True |  |
+| `id` (PK) | BIGINT | no |  |  |
+| `company_id` | BIGINT | no |  | companies.id |
+| `created_at` | DATETIME | no | now() |  |
+| `updated_at` | DATETIME | no | now() |  |
+
+- Única: (company_id, code)
+- Índice `ix_promotions_company_id`: (promotions.company_id)
+- Verificación `ck_promotions_discount_valid`: `discount_pct > 0 and discount_pct <= 100`
+- Verificación `ck_promotions_validity_valid`: `valid_to >= valid_from`
+- Verificación `ck_promotions_single_scope`: `item_id is null or category_id is null`
+
 ### `sales_quote_lines`
 
 | Columna | Tipo | Nulo | Por defecto | Referencia |
@@ -2101,6 +2172,8 @@ Cada envío queda registrado con destinatarios, asunto, estado y error; el PDF s
 | `unit_price` | NUMERIC(18, 6) | no |  |  |
 | `discount_pct` | NUMERIC(18, 6) | no | 0 |  |
 | `tax_id` | BIGINT | sí |  | taxes.id |
+| `price_source` | VARCHAR(12) | sí |  |  |
+| `promotion_id` | BIGINT | sí |  | promotions.id |
 | `id` (PK) | BIGINT | no |  |  |
 
 - Única: (quote_id, line_no)
@@ -2139,8 +2212,8 @@ Cotización a cliente: precede al pedido y deja trazabilidad de la oferta (acept
 - Índice `ix_sales_quotes_company_id`: (sales_quotes.company_id)
 - Índice `ix_sales_quotes_customer_id`: (sales_quotes.customer_id)
 - Índice `ix_sales_quotes_sales_order_id`: (sales_quotes.sales_order_id)
-- Verificación `ck_sales_quotes_status_valid`: `status in ('draft','sent','accepted','rejected','cancelled')`
 - Verificación `ck_sales_quotes_validity_valid`: `valid_until >= quote_date`
+- Verificación `ck_sales_quotes_status_valid`: `status in ('draft','sent','accepted','rejected','cancelled')`
 
 ## Reglas en base de datos (migración 0002)
 

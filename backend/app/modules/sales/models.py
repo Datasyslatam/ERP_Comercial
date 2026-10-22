@@ -2,7 +2,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, ForeignKey, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, CompanyMixin, IdMixin, Qty, Rate, TimestampMixin, UnitCost
@@ -61,6 +61,8 @@ class SalesOrderLine(IdMixin, Base):
     qty_dispatched: Mapped[Decimal] = mapped_column(Qty, default=Decimal("0"))
     qty_invoiced: Mapped[Decimal] = mapped_column(Qty, default=Decimal("0"))
     qty_returned: Mapped[Decimal] = mapped_column(Qty, default=Decimal("0"))
+    price_source: Mapped[str | None] = mapped_column(String(12))  # manual, price_list, list_price, quote
+    promotion_id: Mapped[int | None] = mapped_column(ForeignKey("promotions.id"))
 
 
 class SalesQuote(IdMixin, CompanyMixin, TimestampMixin, Base):
@@ -111,3 +113,68 @@ class SalesQuoteLine(IdMixin, Base):
     unit_price: Mapped[Decimal] = mapped_column(UnitCost)
     discount_pct: Mapped[Decimal] = mapped_column(Qty, default=Decimal("0"))
     tax_id: Mapped[int | None] = mapped_column(ForeignKey("taxes.id"))
+    price_source: Mapped[str | None] = mapped_column(String(12))
+    promotion_id: Mapped[int | None] = mapped_column(ForeignKey("promotions.id"))
+
+
+class PriceList(IdMixin, CompanyMixin, TimestampMixin, Base):
+    """Lista de precios de venta por moneda y vigencia. Se asigna a clientes; una puede ser la predeterminada."""
+
+    __tablename__ = "price_lists"
+    __table_args__ = (
+        UniqueConstraint("company_id", "code"),
+        CheckConstraint("valid_to is null or valid_to >= valid_from", name="validity_valid"),
+        Index("uq_price_lists_default", "company_id", "currency", unique=True, postgresql_where=text("is_default")),
+    )
+
+    code: Mapped[str] = mapped_column(String(30))
+    name: Mapped[str] = mapped_column(String(120))
+    currency: Mapped[str] = mapped_column(ForeignKey("currencies.code"))
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_to: Mapped[date | None] = mapped_column(Date)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    items: Mapped[list["PriceListItem"]] = relationship(
+        cascade="all, delete-orphan", order_by="(PriceListItem.item_id, PriceListItem.min_qty)", lazy="selectin"
+    )
+
+
+class PriceListItem(IdMixin, Base):
+    """Precio de un artículo en la lista; varios tramos por cantidad mínima permiten descuentos por volumen."""
+
+    __tablename__ = "price_list_items"
+    __table_args__ = (
+        UniqueConstraint("price_list_id", "item_id", "min_qty"),
+        CheckConstraint("unit_price >= 0 and min_qty > 0", name="values_valid"),
+    )
+
+    price_list_id: Mapped[int] = mapped_column(ForeignKey("price_lists.id", ondelete="CASCADE"), index=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("items.id"), index=True)
+    min_qty: Mapped[Decimal] = mapped_column(Qty, default=Decimal("1"))
+    unit_price: Mapped[Decimal] = mapped_column(UnitCost)
+
+
+class Promotion(IdMixin, CompanyMixin, TimestampMixin, Base):
+    """Descuento porcentual con vigencia para un artículo, una categoría o todo el catálogo, con cantidad mínima y
+    cliente opcionales. Se aplica cuando la línea no trae descuento manual; si varias aplican, gana la mayor."""
+
+    __tablename__ = "promotions"
+    __table_args__ = (
+        UniqueConstraint("company_id", "code"),
+        CheckConstraint("discount_pct > 0 and discount_pct <= 100", name="discount_valid"),
+        CheckConstraint("valid_to >= valid_from", name="validity_valid"),
+        CheckConstraint("item_id is null or category_id is null", name="single_scope"),
+    )
+
+    code: Mapped[str] = mapped_column(String(30))
+    name: Mapped[str] = mapped_column(String(120))
+    discount_pct: Mapped[Decimal] = mapped_column(Qty)
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_to: Mapped[date] = mapped_column(Date)
+    item_id: Mapped[int | None] = mapped_column(ForeignKey("items.id"))
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("item_categories.id"))
+    customer_id: Mapped[int | None] = mapped_column(ForeignKey("parties.id"))
+    min_qty: Mapped[Decimal | None] = mapped_column(Qty)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)

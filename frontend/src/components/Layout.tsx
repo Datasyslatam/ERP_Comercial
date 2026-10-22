@@ -40,6 +40,8 @@ export const NAV: { section: string; items: NavItem[] }[] = [
   { section: "Ventas y logística", items: [
     { to: "/ventas/cotizaciones", label: "Cotizaciones", perm: "sales.quote.read", module: "sales" },
     { to: "/ventas/pedidos", label: "Pedidos de venta", perm: "sales.order.read", module: "sales" },
+    { to: "/ventas/listas-precios", label: "Listas de precios", perm: "sales.pricing.read", module: "sales" },
+    { to: "/ventas/promociones", label: "Promociones", perm: "sales.pricing.read", module: "sales" },
     { to: "/logistica/despachos", label: "Despachos", perm: "logistics.dispatch.read", module: "logistics" },
     { to: "/logistica/rutas", label: "Rutas y plan de entregas", perm: "logistics.dispatch.read", module: "logistics" },
     { to: "/logistica/incidencias", label: "Incidencias de entrega", perm: "logistics.dispatch.read", module: "logistics" },

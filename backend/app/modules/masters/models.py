@@ -156,6 +156,7 @@ class Party(IdMixin, TimestampMixin, Base):
     country_code: Mapped[str] = mapped_column(String(2), default="CO")
     payment_term_id: Mapped[int | None] = mapped_column(ForeignKey("payment_terms.id"))
     credit_limit: Mapped[Decimal] = mapped_column(default=Decimal("0"))
+    price_list_id: Mapped[int | None] = mapped_column(ForeignKey("price_lists.id"))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     withholdings: Mapped[list[Tax]] = relationship(secondary="party_withholdings", lazy="selectin")

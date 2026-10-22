@@ -16,6 +16,7 @@ from app.modules.inventory import stock
 from app.modules.inventory.models import StockReservation
 from app.modules.masters.models import Item, Party, Tax
 from app.modules.masters.service import compute_taxes
+from app.modules.sales import pricing
 from app.modules.sales.models import SalesOrder, SalesOrderLine, SalesQuote, SalesQuoteLine
 
 
@@ -24,39 +25,82 @@ def line_net(ln) -> Decimal:
     return money(gross * (1 - Decimal(ln.discount_pct or 0) / 100))
 
 
+def _customer(db: Session, p: Principal, customer_id: int) -> Party:
+    customer = get_owned(db, Party, customer_id, p.company_id)
+    if not customer.is_customer or not customer.is_active:
+        raise BusinessRuleViolation("El tercero no es un cliente activo")
+    return customer
+
+
+def _build_lines(db: Session, p: Principal, doc, lines: list[dict], customer: Party, on: date, line_cls) -> None:
+    """Valida artículos, aplica lista de precios y promociones, resuelve impuestos y recalcula los totales."""
+    if not lines:
+        raise BusinessRuleViolation("El documento requiere al menos una línea")
+    items = {}
+    for ln in lines:
+        item = get_owned(db, Item, ln["item_id"], p.company_id)
+        if not item.is_active:
+            raise BusinessRuleViolation(f"El artículo {item.sku} está inactivo")
+        items[item.id] = item
+    pricing.apply_to_lines(db, p.company_id, customer, doc.currency, on, lines, items)
+    calc = []
+    for i, ln in enumerate(lines, start=1):
+        item = items[ln["item_id"]]
+        tax_id = ln.get("tax_id") or item.sales_tax_id
+        tax = get_owned(db, Tax, tax_id, p.company_id) if tax_id else None
+        ln["tax_id"] = tax.id if tax else None
+        new = line_cls(line_no=i, **ln)
+        doc.lines.append(new)
+        calc.append((line_net(new), tax))
+    res = compute_taxes(calc, [], "sales")
+    doc.subtotal, doc.tax_total, doc.total = res.subtotal, res.tax_total, res.total
+
+
 def create_order(db: Session, p: Principal, data: dict) -> SalesOrder:
     from app.modules.purchasing.service import _resolve_rate
 
     lines = data.pop("lines")
-    if not lines:
-        raise BusinessRuleViolation("El pedido requiere al menos una línea")
     check_company_refs(db, SalesOrder, p.company_id, data)
     p.ensure_site(data["site_id"])
-    customer = get_owned(db, Party, data["customer_id"], p.company_id)
-    if not customer.is_customer or not customer.is_active:
-        raise BusinessRuleViolation("El tercero no es un cliente activo")
+    customer = _customer(db, p, data["customer_id"])
     data.setdefault("payment_term_id", customer.payment_term_id)
     data.setdefault("delivery_address", customer.address)
     data["exchange_rate"] = _resolve_rate(db, p.company, data["currency"], data["order_date"], data.get("exchange_rate"))
     so = SalesOrder(company_id=p.company_id, number=next_number(db, p.company_id, "sales_order"),
                     created_by_id=p.user_id, **data)
-    calc = []
-    for i, ln in enumerate(lines, start=1):
-        item = get_owned(db, Item, ln["item_id"], p.company_id)
-        if not item.is_active:
-            raise BusinessRuleViolation(f"El artículo {item.sku} está inactivo")
-        if ln.get("unit_price") is None:
-            ln["unit_price"] = item.list_price
-        tax = get_owned(db, Tax, ln.get("tax_id") or item.sales_tax_id, p.company_id) \
-            if (ln.get("tax_id") or item.sales_tax_id) else None
-        ln["tax_id"] = tax.id if tax else None
-        sol = SalesOrderLine(line_no=i, **ln)
-        so.lines.append(sol)
-        calc.append((line_net(sol), tax))
-    res = compute_taxes(calc, [], "sales")
-    so.subtotal, so.tax_total, so.total = res.subtotal, res.tax_total, res.total
+    _build_lines(db, p, so, lines, customer, so.order_date, SalesOrderLine)
     db.add(so)
     db.flush()
+    return so
+
+
+ORDER_EDITABLE = ("site_id", "customer_id", "warehouse_id", "order_date", "promised_date", "currency", "exchange_rate",
+                  "payment_term_id", "delivery_address", "notes")
+
+
+def update_order(db: Session, p: Principal, so_id: int, data: dict) -> SalesOrder:
+    """Reemplaza encabezado y líneas de un pedido en borrador (aún sin reservas ni cupo comprometido)."""
+    from app.modules.purchasing.service import _resolve_rate
+
+    so = get_owned(db, SalesOrder, so_id, p.company_id, lock=True)
+    if so.status != "draft":
+        raise Conflict("Solo se editan pedidos en borrador; uno confirmado se cierra o se anula")
+    p.ensure_site(so.site_id)
+    lines = data.pop("lines")
+    check_company_refs(db, SalesOrder, p.company_id, data)
+    p.ensure_site(data.get("site_id", so.site_id))
+    before = {"total": str(so.total), "lines": len(so.lines)}
+    for key in ORDER_EDITABLE:
+        if key in data:
+            setattr(so, key, data[key])
+    customer = _customer(db, p, so.customer_id)
+    so.exchange_rate = _resolve_rate(db, p.company, so.currency, so.order_date, data.get("exchange_rate"))
+    so.lines.clear()
+    db.flush()  # las líneas anteriores se eliminan antes de numerar las nuevas
+    _build_lines(db, p, so, lines, customer, so.order_date, SalesOrderLine)
+    db.flush()
+    log_action(db, "update", "sales_orders", so.id, f"Pedido en borrador editado: total {before['total']} -> {so.total}",
+               {"before": before, "after": {"total": str(so.total), "lines": len(so.lines)}})
     return so
 
 
@@ -161,35 +205,55 @@ def quote_status(q: SalesQuote, today: date | None = None) -> str:
 
 def create_quote(db: Session, p: Principal, data: dict) -> SalesQuote:
     lines = data.pop("lines")
-    if not lines:
-        raise BusinessRuleViolation("La cotización requiere al menos una línea")
     check_company_refs(db, SalesQuote, p.company_id, data)
     p.ensure_site(data["site_id"])
-    customer = get_owned(db, Party, data["customer_id"], p.company_id)
-    if not customer.is_customer or not customer.is_active:
-        raise BusinessRuleViolation("El tercero no es un cliente activo")
+    customer = _customer(db, p, data["customer_id"])
     if data["valid_until"] < data["quote_date"]:
         raise BusinessRuleViolation("La vigencia no puede ser anterior a la fecha de la cotización")
     data.setdefault("payment_term_id", customer.payment_term_id)
     q = SalesQuote(company_id=p.company_id, number=next_number(db, p.company_id, "sales_quote"),
                    created_by_id=p.user_id, **data)
-    calc = []
-    for i, ln in enumerate(lines, start=1):
-        item = get_owned(db, Item, ln["item_id"], p.company_id)
-        if not item.is_active:
-            raise BusinessRuleViolation(f"El artículo {item.sku} está inactivo")
-        if ln.get("unit_price") is None:
-            ln["unit_price"] = item.list_price
-        tax_id = ln.get("tax_id") or item.sales_tax_id
-        tax = get_owned(db, Tax, tax_id, p.company_id) if tax_id else None
-        ln["tax_id"] = tax.id if tax else None
-        ql = SalesQuoteLine(line_no=i, **ln)
-        q.lines.append(ql)
-        calc.append((line_net(ql), tax))
-    res = compute_taxes(calc, [], "sales")
-    q.subtotal, q.tax_total, q.total = res.subtotal, res.tax_total, res.total
+    _build_lines(db, p, q, lines, customer, q.quote_date, SalesQuoteLine)
     db.add(q)
     db.flush()
+    return q
+
+
+QUOTE_EDITABLE = ("site_id", "customer_id", "quote_date", "valid_until", "currency", "payment_term_id", "contact_name",
+                  "notes")
+
+
+def update_quote(db: Session, p: Principal, quote_id: int, data: dict) -> SalesQuote:
+    """Reemplaza encabezado y líneas de una cotización en borrador; una enviada al cliente no se modifica."""
+    q = get_owned(db, SalesQuote, quote_id, p.company_id, lock=True)
+    if q.status != "draft":
+        raise Conflict("Solo se editan cotizaciones en borrador; una ya enviada se anula y se emite una nueva")
+    p.ensure_site(q.site_id)
+    lines = data.pop("lines")
+    check_company_refs(db, SalesQuote, p.company_id, data)
+    p.ensure_site(data.get("site_id", q.site_id))
+    before = str(q.total)
+    for key in QUOTE_EDITABLE:
+        if key in data:
+            setattr(q, key, data[key])
+    if q.valid_until < q.quote_date:
+        raise BusinessRuleViolation("La vigencia no puede ser anterior a la fecha de la cotización")
+    customer = _customer(db, p, q.customer_id)
+    q.lines.clear()
+    db.flush()
+    _build_lines(db, p, q, lines, customer, q.quote_date, SalesQuoteLine)
+    db.flush()
+    log_action(db, "update", "sales_quotes", q.id, f"Cotización en borrador editada: total {before} -> {q.total}")
+    return q
+
+
+def cancel_quote(db: Session, p: Principal, quote_id: int, reason: str) -> SalesQuote:
+    """Anulación interna (error, duplicado, reemplazo por una nueva). La pérdida ante el cliente es «rechazar»."""
+    q = get_owned(db, SalesQuote, quote_id, p.company_id, lock=True)
+    if q.status not in ("draft", "sent"):
+        raise Conflict("Solo se anulan cotizaciones abiertas")
+    q.status, q.lost_reason = "cancelled", reason
+    log_action(db, "void", "sales_quotes", q.id, f"Cotización anulada: {reason}")
     return q
 
 
@@ -231,7 +295,8 @@ def convert_quote(db: Session, p: Principal, quote_id: int, data: dict) -> Sales
         "notes": f"Cotización {q.number}" + (f". {q.notes}" if q.notes else ""),
         **({"delivery_address": data["delivery_address"]} if data.get("delivery_address") else {}),
         "lines": [{"item_id": ln.item_id, "quantity": ln.quantity, "unit_price": ln.unit_price,
-                   "discount_pct": ln.discount_pct, "tax_id": ln.tax_id, "description": ln.description}
+                   "discount_pct": ln.discount_pct, "tax_id": ln.tax_id, "description": ln.description,
+                   "price_source": "quote", "promotion_id": ln.promotion_id}
                   for ln in q.lines],
     })
     q.status, q.sales_order_id = "accepted", so.id

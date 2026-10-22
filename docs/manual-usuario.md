@@ -57,7 +57,7 @@
    El sistema calcula IVA y retenciones y crea la cuenta por pagar. Un mismo número de factura del
    proveedor no puede registrarse dos veces.
 7. **Rechazo o anulación de la OC**: el aprobador puede *Rechazar* con motivo; una orden sin recepciones se
-   *Anula* con motivo.
+   *Anula* con motivo. Mientras está en borrador, *Editar* permite cambiar proveedor, bodega, fechas y líneas.
 - **Recepciones**: listado por periodo y proveedor con lote, vencimiento, cantidades aceptadas, rechazadas y
   facturadas y estado de inspección.
 - **Historial de precios**: por artículo, precios pactados por proveedor con mínimo, máximo y variación frente
@@ -92,15 +92,31 @@
 - **Conteos físicos**: *Abrir conteo* por bodega → digite cantidades (conteo ciego) → un aprobador
   *Aprueba y ajusta*; las diferencias se contabilizan.
 
+## Precios y promociones
+- **Listas de precios** (*Ventas y logística → Listas de precios*): por moneda y vigencia, con uno o varios tramos
+  por artículo (*Desde cantidad*). Repetir un artículo con una cantidad mínima mayor y un precio menor es un descuento
+  por volumen. Cada cliente puede tener su lista (*Asignar clientes*); una lista por moneda es la *predeterminada*.
+- **Cómo se fija el precio** de una línea de cotización o pedido sin precio digitado: lista del cliente → lista
+  predeterminada → precio base del artículo. Lo digitado a mano siempre se respeta.
+- **Promociones** (*Ventas y logística → Promociones*): descuento porcentual con vigencia para un artículo, una
+  categoría o todo el catálogo, con cantidad mínima y cliente opcionales. Se aplica sola cuando la línea no trae
+  descuento digitado (dejar *Desc. %* vacío); si varias aplican, gana la mayor. Escribir 0 desactiva la promoción en esa
+  línea.
+- Las líneas muestran el **origen del precio** (manual, lista de precios, precio base o cotización) y si tienen
+  promoción. *Consultar precio* muestra lo que obtendría un cliente por un artículo y cantidad antes de cotizar.
+
 ## Ventas, logística y facturación
 0. **Cotización**: Ventas → Cotizaciones → *Nueva* (cliente, vigencia, precios y descuentos). *Marcar como
    enviada* cuando la reciba el cliente. *Convertir en pedido* crea el pedido con las mismas condiciones;
    *Registrar como perdida* exige el motivo (precio, plazo, competencia). Vencida la vigencia no se convierte:
-   emita una nueva con precios actualizados.
+   emita una nueva con precios actualizados. *Editar* solo está disponible en borrador (una enviada ya la tiene el
+   cliente); *Anular* (con motivo) es para errores, duplicados o cuando se reemplaza por una nueva.
 1. **Pedido**: Ventas → Pedidos → *Nuevo* (o desde la cotización). *Confirmar y reservar* valida el cupo de
    crédito y reserva inventario (primero lo que vence primero; nunca lotes vencidos, bloqueados o en
    cuarentena). La ficha del pedido muestra por línea lo pedido, la reserva vigente, lo despachado, facturado,
    devuelto y pendiente, y el cupo de crédito disponible del cliente mientras está en borrador.
+   - **Editar**: un pedido en borrador se puede modificar (cliente, bodega, fechas, dirección y líneas); al guardar
+     se recalculan precios, promociones e impuestos. Confirmado ya no se edita.
    - **Cerrar saldo**: si el cliente ya no requiere lo pendiente, el pedido se cierra con motivo y se liberan
      sus reservas (no debe haber despachos en preparación). **Anular** solo aplica a pedidos sin despachos.
 2. **Despacho**: *Generar despacho* → *Planificar* (ruta, transportista, fecha de envío y dirección) →

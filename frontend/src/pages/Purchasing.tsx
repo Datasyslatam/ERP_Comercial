@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { TracePanel } from "../components/TracePanel";
 import { DocumentActions } from "../components/DocumentActions";
+import { DraftEditor, editableLines } from "../components/DraftEditor";
 import { Line, LinesEditor, linesPayload } from "../components/LinesEditor";
 import { ActionButton, Alert, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
-import { Json, post, qs } from "../lib/api";
+import { Json, post, put, qs } from "../lib/api";
 import { fmtDate, fmtMoney, fmtNumber, label } from "../lib/format";
 import { useFetch, useItemNames, useLookup, useOptions } from "../lib/hooks";
 import { useSession } from "../lib/session";
@@ -148,7 +149,11 @@ export function OrderDetailPage() {
   const itemName = useItemNames();
   const [receiving, setReceiving] = useState(false);
   const [closing, setClosing] = useState<"reject" | "cancel" | null>(null);
+  const [editing, setEditing] = useState(false);
   const partyName = useLookup("/parties?limit=500", (x) => x.legal_name);
+  const suppliers = useOptions("/parties?limit=500", (x) => x.legal_name);
+  const sites = useOptions("/sites", (x) => x.name);
+  const whs = useOptions("/warehouses", (x) => x.name);
   if (!po) return <p className="muted">Cargando…</p>;
   const act = (path: string, body?: Json) => async () => { await post(`/purchasing/orders/${po.id}/${path}`, body); reload(); };
   return (
@@ -157,6 +162,7 @@ export function OrderDetailPage() {
       <DocumentActions type="purchase_order" id={po.id} number={po.number}
         canSend={can("purchasing.order.create") && ["approved", "partially_received", "received", "closed"].includes(po.status)}
         sendHint={["draft", "submitted"].includes(po.status) ? "Se envía al proveedor una vez aprobada" : undefined} />
+      {po.status === "draft" && can("purchasing.order.create") && <button className="secondary" onClick={() => setEditing(true)}>Editar</button>}
       {po.status === "draft" && <ActionButton onClick={act("submit")}>Enviar a aprobación</ActionButton>}
       {po.status === "submitted" && can("purchasing.order.approve") && <>
         <ActionButton onClick={act("decision", { approve: true })}>Aprobar</ActionButton>
@@ -183,6 +189,15 @@ export function OrderDetailPage() {
         { key: "payable_total", title: "Por pagar", align: "right", render: (r) => fmtMoney(r.payable_total) }]} />
       <h3>Trazabilidad</h3>
       <TracePanel type="purchase_order" id={po.id} />
+      {editing && <DraftEditor title={`Editar orden ${po.number}`} sales={false} lines={editableLines(po.lines, false)} onClose={() => setEditing(false)}
+        initial={{ supplier_id: po.supplier_id, site_id: po.site_id, warehouse_id: po.warehouse_id, order_date: po.order_date,
+          expected_date: po.expected_date ?? "", currency: po.currency, notes: po.notes ?? "" }}
+        fields={[{ name: "supplier_id", label: "Proveedor", type: "select", required: true, options: suppliers },
+          { name: "site_id", label: "Sede", type: "select", required: true, options: sites },
+          { name: "warehouse_id", label: "Bodega destino", type: "select", required: true, options: whs },
+          { name: "order_date", label: "Fecha", type: "date", required: true }, { name: "expected_date", label: "Entrega esperada", type: "date" },
+          { name: "currency", label: "Moneda", required: true }, { name: "notes", label: "Notas", type: "textarea" }]}
+        onSubmit={async (d, lines) => { await put(`/purchasing/orders/${po.id}`, { ...d, lines }); setEditing(false); reload(); }} />}
       {closing && <Modal title={closing === "reject" ? "Rechazar orden de compra" : "Anular orden de compra"} onClose={() => setClosing(null)}>
         <Form submitLabel={closing === "reject" ? "Rechazar" : "Anular"} fields={[{ name: "reason", label: "Motivo", type: "textarea", required: true }]}
           onSubmit={async (d) => {

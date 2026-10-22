@@ -7162,6 +7162,66 @@
    }
   },
   "/api/v1/purchasing/orders/{po_id}": {
+   "put": {
+    "tags": [
+     "Compras"
+    ],
+    "summary": "Update Order",
+    "description": "Edita una orden en borrador: reemplaza encabezado y líneas y recalcula impuestos.",
+    "operationId": "update_order_api_v1_purchasing_orders__po_id__put",
+    "parameters": [
+     {
+      "name": "po_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Po Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/OrderIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
    "get": {
     "tags": [
      "Compras"
@@ -10192,6 +10252,66 @@
       }
      }
     }
+   },
+   "put": {
+    "tags": [
+     "Ventas"
+    ],
+    "summary": "Update Order",
+    "description": "Edita un pedido en borrador: reemplaza encabezado y líneas y recalcula precios, promociones e impuestos.",
+    "operationId": "update_order_api_v1_sales_orders__so_id__put",
+    "parameters": [
+     {
+      "name": "so_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "So Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SalesOrderIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
    }
   },
   "/api/v1/sales/orders/{so_id}/confirm": {
@@ -10593,6 +10713,128 @@
       "description": "Empresa sobre la que se opera"
      }
     ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "Ventas"
+    ],
+    "summary": "Update Quote",
+    "description": "Edita una cotización en borrador (una enviada al cliente se anula y se emite otra).",
+    "operationId": "update_quote_api_v1_sales_quotes__quote_id__put",
+    "parameters": [
+     {
+      "name": "quote_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Quote Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__modules__sales__router__QuoteIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/quotes/{quote_id}/cancel": {
+   "post": {
+    "tags": [
+     "Ventas"
+    ],
+    "summary": "Cancel Quote",
+    "description": "Anulación interna de una cotización abierta (error, duplicado o reemplazo).",
+    "operationId": "cancel_quote_api_v1_sales_quotes__quote_id__cancel_post",
+    "parameters": [
+     {
+      "name": "quote_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Quote Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReasonIn"
+       }
+      }
+     }
+    },
     "responses": {
      "200": {
       "description": "Successful Response",
@@ -18112,6 +18354,538 @@
     }
    }
   },
+  "/api/v1/sales/price-lists": {
+   "get": {
+    "tags": [
+     "Ventas: precios y promociones"
+    ],
+    "summary": "List Price Lists",
+    "operationId": "list_price_lists_api_v1_sales_price_lists_get",
+    "parameters": [
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Ventas: precios y promociones"
+    ],
+    "summary": "Create Price List",
+    "operationId": "create_price_list_api_v1_sales_price_lists_post",
+    "parameters": [
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PriceListIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/price-lists/{list_id}": {
+   "get": {
+    "tags": [
+     "Ventas: precios y promociones"
+    ],
+    "summary": "Get Price List",
+    "operationId": "get_price_list_api_v1_sales_price_lists__list_id__get",
+    "parameters": [
+     {
+      "name": "list_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "List Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "Ventas: precios y promociones"
+    ],
+    "summary": "Update Price List",
+    "operationId": "update_price_list_api_v1_sales_price_lists__list_id__patch",
+    "parameters": [
+     {
+      "name": "list_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "List Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PriceListPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/price-lists/{list_id}/items": {
+   "put": {
+    "tags": [
+     "Ventas: precios y promociones"
+    ],
+    "summary": "Set Price Items",
+    "description": "Reemplaza los precios de la lista. Varios tramos del mismo artículo = descuento por volumen.",
+    "operationId": "set_price_items_api_v1_sales_price_lists__list_id__items_put",
+    "parameters": [
+     {
+      "name": "list_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "List Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PriceItemsIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/price-lists/{list_id}/customers": {
+   "put": {
+    "tags": [
+     "Ventas: precios y promociones"
+    ],
+    "summary": "Set Price Customers",
+    "description": "Define exactamente qué clientes usan la lista (los que salen quedan con la lista predeterminada).",
+    "operationId": "set_price_customers_api_v1_sales_price_lists__list_id__customers_put",
+    "parameters": [
+     {
+      "name": "list_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "List Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CustomersIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/promotions": {
+   "get": {
+    "tags": [
+     "Ventas: precios y promociones"
+    ],
+    "summary": "List Promotions",
+    "operationId": "list_promotions_api_v1_sales_promotions_get",
+    "parameters": [
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Ventas: precios y promociones"
+    ],
+    "summary": "Create Promotion",
+    "operationId": "create_promotion_api_v1_sales_promotions_post",
+    "parameters": [
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PromotionIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/promotions/{promo_id}": {
+   "patch": {
+    "tags": [
+     "Ventas: precios y promociones"
+    ],
+    "summary": "Update Promotion",
+    "operationId": "update_promotion_api_v1_sales_promotions__promo_id__patch",
+    "parameters": [
+     {
+      "name": "promo_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "title": "Promo Id"
+      }
+     },
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PromotionPatch"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sales/pricing": {
+   "post": {
+    "tags": [
+     "Ventas: precios y promociones"
+    ],
+    "summary": "Price Preview",
+    "description": "Precio y descuento que se aplicarían a cada línea (lista del cliente, predeterminada o precio de lista).",
+    "operationId": "price_preview_api_v1_sales_pricing_post",
+    "parameters": [
+     {
+      "name": "X-Company-Id",
+      "in": "header",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "description": "Empresa sobre la que se opera",
+       "title": "X-Company-Id"
+      },
+      "description": "Empresa sobre la que se opera"
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PricingIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/health/live": {
    "get": {
     "tags": [
@@ -20237,6 +21011,23 @@
      "entries"
     ],
     "title": "CountRecordIn"
+   },
+   "CustomersIn": {
+    "properties": {
+     "customer_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "maxItems": 5000,
+      "title": "Customer Ids"
+     }
+    },
+    "type": "object",
+    "required": [
+     "customer_ids"
+    ],
+    "title": "CustomersIn"
    },
    "DecisionIn": {
     "properties": {
@@ -23912,6 +24703,17 @@
       ],
       "title": "Credit Limit"
      },
+     "price_list_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price List Id"
+     },
      "is_active": {
       "anyOf": [
        {
@@ -24177,6 +24979,17 @@
        }
       ],
       "title": "Credit Limit"
+     },
+     "price_list_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price List Id"
      },
      "is_active": {
       "anyOf": [
@@ -24477,6 +25290,17 @@
        }
       ],
       "title": "Credit Limit"
+     },
+     "price_list_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price List Id"
      },
      "is_active": {
       "anyOf": [
@@ -24912,6 +25736,405 @@
      "account_id"
     ],
     "title": "PostingAccountIn"
+   },
+   "PriceItemIn": {
+    "properties": {
+     "item_id": {
+      "type": "integer",
+      "title": "Item Id"
+     },
+     "min_qty": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Min Qty"
+     },
+     "unit_price": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Unit Price"
+     }
+    },
+    "type": "object",
+    "required": [
+     "item_id",
+     "min_qty",
+     "unit_price"
+    ],
+    "title": "PriceItemIn"
+   },
+   "PriceItemsIn": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/PriceItemIn"
+      },
+      "type": "array",
+      "maxItems": 5000,
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items"
+    ],
+    "title": "PriceItemsIn"
+   },
+   "PriceListIn": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 30,
+      "minLength": 1,
+      "title": "Code"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 2,
+      "title": "Name"
+     },
+     "currency": {
+      "type": "string",
+      "maxLength": 3,
+      "minLength": 3,
+      "pattern": "^[A-Z]{3}$",
+      "title": "Currency"
+     },
+     "valid_from": {
+      "type": "string",
+      "format": "date",
+      "title": "Valid From"
+     },
+     "valid_to": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Valid To"
+     },
+     "is_default": {
+      "type": "boolean",
+      "title": "Is Default",
+      "default": false
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "name",
+     "currency",
+     "valid_from"
+    ],
+    "title": "PriceListIn"
+   },
+   "PriceListPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120,
+        "minLength": 2
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "valid_to": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Valid To"
+     },
+     "is_default": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Default"
+     },
+     "is_active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Active"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     }
+    },
+    "type": "object",
+    "title": "PriceListPatch"
+   },
+   "PricingIn": {
+    "properties": {
+     "customer_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Customer Id"
+     },
+     "currency": {
+      "type": "string",
+      "maxLength": 3,
+      "minLength": 3,
+      "pattern": "^[A-Z]{3}$",
+      "title": "Currency"
+     },
+     "on": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "On"
+     },
+     "lines": {
+      "items": {
+       "$ref": "#/components/schemas/PricingLine"
+      },
+      "type": "array",
+      "maxItems": 200,
+      "minItems": 1,
+      "title": "Lines"
+     }
+    },
+    "type": "object",
+    "required": [
+     "currency",
+     "lines"
+    ],
+    "title": "PricingIn"
+   },
+   "PricingLine": {
+    "properties": {
+     "item_id": {
+      "type": "integer",
+      "title": "Item Id"
+     },
+     "quantity": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Quantity"
+     }
+    },
+    "type": "object",
+    "required": [
+     "item_id",
+     "quantity"
+    ],
+    "title": "PricingLine"
+   },
+   "PromotionIn": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 30,
+      "minLength": 1,
+      "title": "Code"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 2,
+      "title": "Name"
+     },
+     "discount_pct": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 100.0,
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Discount Pct"
+     },
+     "valid_from": {
+      "type": "string",
+      "format": "date",
+      "title": "Valid From"
+     },
+     "valid_to": {
+      "type": "string",
+      "format": "date",
+      "title": "Valid To"
+     },
+     "item_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Item Id"
+     },
+     "category_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Category Id"
+     },
+     "customer_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Customer Id"
+     },
+     "min_qty": {
+      "anyOf": [
+       {
+        "type": "number",
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Min Qty"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "name",
+     "discount_pct",
+     "valid_from",
+     "valid_to"
+    ],
+    "title": "PromotionIn"
+   },
+   "PromotionPatch": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120,
+        "minLength": 2
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "valid_to": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Valid To"
+     },
+     "is_active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Active"
+     }
+    },
+    "type": "object",
+    "title": "PromotionPatch"
    },
    "QuoteLine": {
     "properties": {
@@ -25635,7 +26858,7 @@
        "type": "string"
       },
       "type": "array",
-      "maxItems": 116,
+      "maxItems": 118,
       "title": "Permissions"
      },
      "copy_from_role_id": {
@@ -25691,7 +26914,7 @@
          "type": "string"
         },
         "type": "array",
-        "maxItems": 116
+        "maxItems": 118
        },
        {
         "type": "null"
@@ -26186,10 +27409,13 @@
        },
        {
         "type": "string"
+       },
+       {
+        "type": "null"
        }
       ],
       "title": "Discount Pct",
-      "default": "0"
+      "description": "Omitir para aplicar promociones"
      },
      "tax_id": {
       "anyOf": [

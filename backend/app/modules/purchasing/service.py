@@ -201,6 +201,13 @@ def create_order(db: Session, p: Principal, data: dict) -> PurchaseOrder:
                                           data.get("exchange_rate"))
     po = PurchaseOrder(company_id=p.company_id, number=next_number(db, p.company_id, "purchase_order"),
                        created_by_id=p.user_id, **data)
+    _build_po_lines(db, p, po, lines)
+    db.add(po)
+    db.flush()
+    return po
+
+
+def _build_po_lines(db: Session, p: Principal, po: PurchaseOrder, lines: list[dict]) -> None:
     calc = []
     for i, ln in enumerate(lines, start=1):
         item = get_owned(db, Item, ln["item_id"], p.company_id)
@@ -212,8 +219,36 @@ def create_order(db: Session, p: Principal, data: dict) -> PurchaseOrder:
         calc.append((money(Decimal(ln["quantity"]) * Decimal(ln["unit_price"])), tax))
     res = compute_taxes(calc, [], "purchases")
     po.subtotal, po.tax_total, po.total = res.subtotal, res.tax_total, res.total
-    db.add(po)
+
+
+PO_EDITABLE = ("site_id", "supplier_id", "warehouse_id", "cost_center_id", "order_date", "expected_date", "currency",
+               "payment_term_id", "notes")
+
+
+def update_order(db: Session, p: Principal, po_id: int, data: dict) -> PurchaseOrder:
+    """Reemplaza encabezado y líneas de una OC en borrador; enviada a aprobación ya no se modifica."""
+    po = get_owned(db, PurchaseOrder, po_id, p.company_id, lock=True)
+    if po.status != "draft":
+        raise Conflict("Solo se editan órdenes en borrador; una enviada o aprobada se rechaza o se anula")
+    p.ensure_site(po.site_id)
+    lines = data.pop("lines")
+    if not lines:
+        raise BusinessRuleViolation("La orden requiere al menos una línea")
+    data.pop("requisition_id", None)  # el origen de la orden no cambia al editarla
+    check_company_refs(db, PurchaseOrder, p.company_id, data)
+    p.ensure_site(data.get("site_id", po.site_id))
+    if "supplier_id" in data:
+        _supplier(db, p.company_id, data["supplier_id"])
+    before = str(po.total)
+    for key in PO_EDITABLE:
+        if key in data:
+            setattr(po, key, data[key])
+    po.exchange_rate = _resolve_rate(db, p.company, po.currency, po.order_date, data.get("exchange_rate"))
+    po.lines.clear()
     db.flush()
+    _build_po_lines(db, p, po, lines)
+    db.flush()
+    log_action(db, "update", "purchase_orders", po.id, f"Orden en borrador editada: total {before} -> {po.total}")
     return po
 
 
