@@ -109,7 +109,8 @@ Mismo procedimiento que B sobre una VM (AWS EC2, Azure VM, GCP, OCI, OpenStack, 
    En ambos, **Root Directory vacío o `/`** (raíz del repositorio): los Dockerfile copian `backend/`,
    `frontend/` y `deploy/` desde la raíz. Con Root Directory `/frontend` el build falla con
    `"/frontend/package.json": not found`. Con *Dockerfile Path* definido Railway construye con Docker,
-   no con Railpack, y la fuente debe ser el repositorio, no una imagen.
+   no con Railpack, y la fuente debe ser el repositorio. Para no depender de los builds de Railway, use
+   las imágenes que publica el CI (sección D.1).
 3. Variables de `api`:
    - `DATABASE_URL=${{Postgres.DATABASE_URL}}` (se normaliza al driver psycopg automáticamente)
    - `ENVIRONMENT=production`, `JWT_SECRET=<aleatorio 48+>`, `CORS_ORIGINS=https://<dominio-web>`
@@ -131,6 +132,29 @@ Mismo procedimiento que B sobre una VM (AWS EC2, Azure VM, GCP, OCI, OpenStack, 
    `create-admin` del paso B.5.
 8. Respaldos: habilite los backups del plugin PostgreSQL de Railway y, adicionalmente, programe un
    *cron service* con la imagen de `api` y el comando `scripts/backup.sh` hacia almacenamiento externo.
+
+### D.1 Despliegue por imagen (recomendado)
+El CI construye las imágenes y, al fusionar en `main` con backend y frontend en verde, las publica en GitHub
+Container Registry: `ghcr.io/datasyslatam/erp-api` y `ghcr.io/datasyslatam/erp-web`, con las etiquetas `latest`
+y el SHA del commit. Railway solo descarga y ejecuta la imagen: no compila, así que una falla de sus
+servidores de build no detiene los despliegues y en producción corre exactamente lo que probó el CI.
+
+1. **Paquetes públicos**: tras el primer push a `main`, en GitHub → organización → *Packages* → `erp-api` y
+   `erp-web` → *Package settings* → *Change visibility* → **Public** (el código ya es público). Si se dejan
+   privados, cada servicio necesita *Registry Credentials* (usuario de GitHub y un token con `read:packages`).
+2. **Fuente de cada servicio** en Railway → *Settings* → *Source*: *Disconnect* del repositorio y
+   *Connect Image* con `ghcr.io/datasyslatam/erp-api:latest` (servicio `api`) y
+   `ghcr.io/datasyslatam/erp-web:latest` (servicio `web`/`frontend`). Se conservan variables, volumen,
+   dominio, *Start Command* (`entrypoint.sh api`) y *Healthcheck*; *Dockerfile Path* y *Root Directory*
+   dejan de aplicar.
+3. **Despliegue automático** (opcional; sin esto, tras cada fusión se pulsa *Redeploy* en ambos servicios):
+   - Railway → proyecto → *Settings* → *Tokens* → crear un **Project Token** del entorno `production`.
+   - GitHub → repositorio → *Settings* → *Secrets and variables* → *Actions*: secreto `RAILWAY_TOKEN` con ese
+     token y variables `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_API_SERVICE_ID` y `RAILWAY_WEB_SERVICE_ID` (los
+     IDs aparecen en la URL del servicio en Railway: `.../service/<id>?environmentId=<id>`).
+   - El job `deploy` del CI fija en cada servicio la imagen del commit (`:<sha>`) y la despliega.
+4. **Volver a una versión anterior**: en *Source* ponga la etiqueta `:<sha>` del commit deseado y despliegue
+   (las migraciones no se revierten solas; vea la sección E).
 
 ## E. Actualización de versiones sin pérdida de datos
 
