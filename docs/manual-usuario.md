@@ -60,6 +60,9 @@
    El sistema calcula IVA y retenciones y crea la cuenta por pagar. Un mismo número de factura del
    proveedor no puede registrarse dos veces. Si la empresa practica las retenciones **al pagar** (ver
    Contabilidad → Pagos y recaudos), la factura se causa sin retenciones y estas se liquidan en el pago.
+   En **Venezuela** el **número de control** de la factura del proveedor es obligatorio (sin él no se
+   contabiliza): va al libro de compras y al TXT de retenciones. La retención de IVA practicada al
+   contabilizar recibe su comprobante (`AAAAMM` + 8 dígitos, consecutivo propio).
 7. **Rechazo o anulación de la OC**: el aprobador puede *Rechazar* con motivo; una orden sin recepciones se
    *Anula* con motivo. Mientras está en borrador, *Editar* permite cambiar proveedor, bodega, fechas y líneas.
 - **Recepciones**: listado por periodo y proveedor con lote, vencimiento, cantidades aceptadas, rechazadas y
@@ -177,6 +180,32 @@
   diferencia la explican las partidas en libros aún no reflejadas por el banco.
 - **Estados financieros**: balance de prueba (con exportación), estado de resultados, balance general, flujo
   de efectivo, **libro mayor** por cuenta y **libro diario**.
+- **Libros y reportes fiscales** (Contabilidad → Libros y reportes fiscales; elija el periodo arriba). Todo
+  en la moneda funcional, convertido con la tasa de cada documento. Valídelos con el contador antes de
+  presentarlos: el ERP los genera, no los declara.
+  - **Venezuela**
+    - *Libro de ventas*: facturas, notas de débito y crédito (con la factura afectada), anuladas como
+      `03-ANU`, ventas exentas y bases e IVA por alícuota (general 16 %, reducida 8 %, general + adicional),
+      tipo de cliente (contribuyente o no) y las **retenciones de IVA que nos practicaron** con el número de
+      comprobante del cliente. Ese número se registra al *Recaudar*, en la columna *Comprobante del cliente*
+      de cada retención.
+    - *Libro de compras*: facturas de proveedor con número de control, compras exentas, bases e IVA por
+      alícuota y el IVA retenido con su comprobante. Las retenciones de facturas de periodos anteriores
+      aparecen como línea propia.
+    - *Retenciones de IVA*: comprobantes emitidos en el periodo, su **PDF** (formato de la Providencia
+      SNAT/2015/0049, una línea por alícuota) y el **TXT para el portal del SENIAT** por quincena o mes
+      completo (16 campos separados por tabulador: RIF del agente, periodo, fecha, tipo de operación `C`,
+      tipo de documento `01`, RIF del proveedor, factura, control, total, base, IVA retenido, documento
+      afectado, comprobante, exento, alícuota y expediente).
+    - Los avisos señalan lo que falta antes de presentar (facturas sin número de control, retenciones sin
+      comprobante). Los libros se exportan a Excel.
+  - **Colombia**
+    - *Auxiliar de IVA*: IVA generado (ventas y notas) y descontable (facturas de proveedor) por documento y
+      tarifa, retenciones de IVA que nos practicaron y el saldo estimado del periodo; exportable a Excel.
+    - *Certificados de retención*: elija **fuente, IVA o ICA**; aparece un certificado por tercero con sus
+      conceptos, bases y valores retenidos (practicados al causar o al pagar) y el PDF listo para entregar
+      (artículo 381 del Estatuto Tributario, valor en letras, ciudad de práctica y consignación tomada de la
+      ciudad de la empresa).
 - **Comprobantes**: un clic abre sus líneas (cuenta, tercero, débito, crédito) y la cadena del documento que
   lo originó.
 - **Periodos**: cerrar bloquea contabilizaciones en el mes; reabrir exige justificación y un usuario

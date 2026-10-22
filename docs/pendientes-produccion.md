@@ -14,14 +14,14 @@ funcionalidad por módulo y documentos comerciales en PDF con envío por correo)
 | 4 | Imprenta digital autorizada SENIAT (Venezuela) | Gerencia + contador | Definir proveedor, formato de intercambio y credenciales; implementar adaptador que asigne número de control real. |
 | 5 | Validación tributaria de parámetros | Revisor fiscal | Tarifas de IVA/INC/IGTF, retenciones por concepto y bases en UVT, ICA por municipio, alícuotas VE, agentes de retención, calendario de declaraciones. |
 | 6 | Revisión del plan de cuentas | Contador | Los planes CO/VE incluidos son base de referencia (PUC comercial simplificado / VEN-NIF genérico). |
-| 7 | Reportes fiscales | Contador + TI | Medios magnéticos/exógena (CO), libros de compras y ventas e IVA (VE), certificados de retención: no implementados. |
+| 7 | Reportes fiscales | Contador + TI | **Implementados**: libros de compras y ventas de IVA, comprobante de retención de IVA y TXT para el SENIAT (VE); auxiliar de IVA y certificados de retención en la fuente, IVA e ICA (CO). Falta: validar los formatos con el contador y con el portal del SENIAT (carga de prueba del TXT), declaración de retenciones de ISLR en XML (VE), medios magnéticos / exógena y formularios 300 y 350 (CO), y notas de crédito y débito de proveedores (hoy el libro de compras solo recibe facturas). |
 
 ## Funcionales
 
 | # | Pendiente |
 |---|---|
 | 8 | Devolución de dinero a clientes cuando la nota crédito supera el saldo de la factura (hoy se bloquea). |
-| 9 | ~~Retenciones al pagar~~ — **implementado**: política `withholding_on_payment`, sugerencias por proveedor con base proporcional, control de doble retención y número de comprobante de retención (CO `CR-`, VE `AAAAMM`+8). Falta: formato oficial del comprobante de retención de IVA del SENIAT y su archivo TXT/XML de declaración, y el certificado anual de retenciones en Colombia. |
+| 9 | ~~Retenciones al pagar~~ — **implementado**: política `withholding_on_payment`, sugerencias por proveedor con base proporcional, control de doble retención y número de comprobante de retención (CO `CR-`, VE `AAAAMM`+8). Comprobante de retención de IVA, TXT del SENIAT y certificados de Colombia implementados (ver #7). |
 | 10 | ~~PDF y envío por correo~~ — **implementado** para cotización, pedido, orden de compra y factura / notas (cola con reintentos y bitácora). PDF y correo de **recibos de caja y comprobantes de egreso** también implementados (valor en letras, retenciones con su comprobante, marca de anulado). Falta: código QR y representación gráfica oficial exigida por el proveedor tecnológico (depende del #1) y adjuntar el XML firmado al correo de la factura. |
 | 11 | ~~Cotizaciones, listas de precios por cliente, descuentos por volumen y promociones~~ — **implementados**. Falta: listas por canal de venta o zona, y promociones por monto de compra o tipo "lleve N pague M". |
 | 12 | Planeación de producción (MRP) y capacidad por centro de trabajo; hoy la planificación es por orden. |

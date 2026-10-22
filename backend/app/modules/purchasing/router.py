@@ -125,6 +125,7 @@ class SupplierInvoiceIn(BaseModel):
     supplier_id: int
     supplier_invoice_number: str = Field(min_length=1, max_length=60)
     supplier_cufe: str | None = Field(default=None, max_length=120)
+    supplier_control_number: str | None = Field(default=None, max_length=40)
     invoice_date: date
     due_date: date | None = None
     currency: str = Field(min_length=3, max_length=3)

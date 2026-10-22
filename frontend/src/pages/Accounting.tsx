@@ -212,7 +212,7 @@ export function AlertsPage() {
 }
 
 
-interface WithholdingRow { tax_id: string; base: string; amount: string }
+interface WithholdingRow { tax_id: string; base: string; amount: string; certificate_number?: string }
 
 /** Recaudo o pago de una partida abierta. En recaudos admite las retenciones que practica el cliente:
  *  el valor aplicado a la partida = valor recibido en banco + retenciones. */
@@ -259,12 +259,14 @@ export function PaymentModal({ kind, item, onClose, onDone }: {
             <option value="">—</option>{withholdingTaxes.map((t) => <option key={t.id} value={t.id}>{t.code} · {t.name}</option>)}</select></td>
           <td><input aria-label="Base" type="number" step="any" placeholder="Base" value={r.base} onChange={(e) => setRow(i, { base: e.target.value })} /></td>
           <td><input aria-label="Valor retenido" type="number" step="any" placeholder="Valor" value={r.amount} onChange={(e) => setRow(i, { amount: e.target.value })} /></td>
+          {receipt && <td><input aria-label="Comprobante del cliente" placeholder="N.º comprobante" maxLength={30}
+            value={r.certificate_number ?? ""} onChange={(e) => setRow(i, { certificate_number: e.target.value })} /></td>}
           <td className="row"><button type="button" className="secondary" onClick={() => calc(i)}>Calcular</button>
             <button type="button" className="secondary" aria-label="Quitar retención" onClick={() => setRows(rows.filter((_, j) => j !== i))}>✕</button></td>
         </tr>)}</tbody></table>
         <button type="button" className="secondary" onClick={() => setRows([...rows, { tax_id: "", base: "", amount: "" }])}>+ Retención</button>
         <p className="muted">Total retenido {fmtMoney(whTotal)}. {receipt
-          ? "El valor recibido en banco más las retenciones se aplica a la partida."
+          ? "El valor recibido en banco más las retenciones se aplica a la partida. Registre el número del comprobante que entrega el cliente: va al libro de ventas."
           : "Se paga el saldo menos las retenciones; cada retención genera su comprobante para el proveedor."}</p>
       </>
       <Form key={formKey} initial={{ payment_date: today(), amount: cashDefault, method: "transfer" }} fields={[
@@ -276,7 +278,8 @@ export function PaymentModal({ kind, item, onClose, onDone }: {
         { name: "reference", label: "Referencia" }]}
         onSubmit={async (d) => {
           const withholdings = rows.filter((r) => r.tax_id && Number(r.amount) > 0)
-            .map((r) => ({ tax_id: Number(r.tax_id), base: r.base || "0", amount: r.amount }));
+            .map((r) => ({ tax_id: Number(r.tax_id), base: r.base || "0", amount: r.amount,
+              ...(receipt && r.certificate_number?.trim() ? { certificate_number: r.certificate_number.trim() } : {}) }));
           const applied = (Number(d.amount) + withholdings.reduce((s, w) => s + Number(w.amount), 0)).toFixed(2);
           await post("/accounting/payments", { ...d, kind: receipt ? "receipt" : "disbursement", party_id: item.party_id,
             currency: item.currency, idempotency_key: idempotencyKey, withholdings,

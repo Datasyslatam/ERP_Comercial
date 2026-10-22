@@ -54,6 +54,13 @@ Límites de aprobación por rol: `PUT /api/v1/approval-limits` (`purchase_requis
   tarifas iniciales (`backend/app/modules/org/jurisdictions.py`) son referencia y **deben validarlas el
   contador o revisor fiscal** (en particular ICA municipal, retenciones por concepto, IGTF y alícuotas).
 - **Retenciones por tercero**: `PUT /api/v1/parties/{id}/withholdings`.
+- **Comprobantes de retención**: la retención de IVA en Venezuela usa su propia secuencia (`AAAAMM` + 8
+  dígitos, consecutiva para el TXT del SENIAT); las demás (ISLR, y en Colombia fuente, IVA e ICA) usan el
+  consecutivo `CR-000001`. Para los certificados de Colombia registre la **ciudad** de la empresa (ciudad de
+  práctica y consignación).
+- **Libros y reportes fiscales**: permisos `accounting.tax_reports.read` (consultar y descargar comprobantes
+  y certificados) y `accounting.tax_reports.export` (Excel de los libros y TXT del SENIAT). Los tienen el
+  contador, la gerencia y el auditor; cada descarga queda en la auditoría.
 - **Cuentas de contabilización**: `PUT /api/v1/posting-accounts` (inventario, CxC, CxP, ingresos, costo,
   variaciones, cuenta puente de saldos iniciales, resultados acumulados…).
 - **Numeración autorizada**: Maestros → Numeración (resolución DIAN o asignación de imprenta digital).

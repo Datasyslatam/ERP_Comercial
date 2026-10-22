@@ -108,7 +108,12 @@ class _Pdf(FPDF):
         left_bottom = self.get_y()
         self.set_xy(self.w - 14 - 75, 9)
         self.set_text_color(*COBALT)
-        self.set_font("helvetica", "B", 12)
+        # Títulos largos (p. ej. certificados de retención) se reducen para no invadir el nombre de la empresa.
+        size = 12
+        self.set_font("helvetica", "B", size)
+        while size > 8 and self.get_string_width(latin(d.title.upper())) > 75:
+            size -= 0.5
+            self.set_font("helvetica", "B", size)
         self.cell(75, 6, latin(d.title.upper()), align="R", new_x="LEFT", new_y="NEXT")
         self.set_text_color(*NAVY)
         self.set_font("helvetica", "B", 11)

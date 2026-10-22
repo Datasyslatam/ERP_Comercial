@@ -173,7 +173,10 @@ def register_payment(db: Session, p: Principal, data: dict) -> Payment:
         if kind == "disbursement" and not p.company.is_withholding_agent:
             raise BusinessRuleViolation("La empresa no es agente de retención")
         amount = money(w["amount"])
-        pay.withholdings.append(PaymentWithholding(tax_id=tax.id, base=money(w.get("base") or 0), amount=amount))
+        # En recaudos se guarda el comprobante que entrega el cliente (libro de ventas); en pagos se genera.
+        pay.withholdings.append(PaymentWithholding(
+            tax_id=tax.id, base=money(w.get("base") or 0), amount=amount,
+            certificate_number=(w.get("certificate_number") or None) if kind == "receipt" else None))
         wh_total += amount
     pay.withholding_amount = wh_total
     allocations = []
@@ -196,8 +199,12 @@ def register_payment(db: Session, p: Principal, data: dict) -> Payment:
         alloc_total += amount
     if kind == "disbursement" and pay.withholdings:
         _check_not_withheld(db, [it for it, _ in allocations], [w.tax_id for w in pay.withholdings])
+        if p.company.country_code == "VE" and len(allocations) > 1:
+            raise BusinessRuleViolation("En Venezuela la retención se practica por factura: registre un pago por "
+                                        "cada factura con retención")
+        wh_taxes = {t.id: t for t in db.scalars(select(Tax).where(Tax.id.in_([w.tax_id for w in pay.withholdings])))}
         for w in pay.withholdings:
-            w.certificate_number = withholding_certificate_number(db, p, pay.payment_date)
+            w.certificate_number = withholding_certificate_number(db, p, pay.payment_date, wh_taxes[w.tax_id])
     if alloc_total != pay.amount + wh_total:
         raise BusinessRuleViolation("La suma aplicada debe ser igual al pago más las retenciones",
                                     details={"applied": str(alloc_total), "payment": str(pay.amount),
@@ -478,13 +485,15 @@ def cash_flow(db: Session, company_id: int, start: date, end: date) -> dict:
             "note": "Clasificación operativa; inversión y financiación requieren marcar cuentas (cash_flow_activity)."}
 
 
-def withholding_certificate_number(db: Session, p: Principal, on: date) -> str:
-    """Comprobante de retención al proveedor. Venezuela: AAAAMM + secuencia de 8 dígitos (formato SENIAT);
-    Colombia: consecutivo interno CR-000001 (el certificado anual se expide aparte)."""
-    seq = next_number(db, p.company_id, "withholding_certificate")
-    if p.company.country_code == "VE":
+def withholding_certificate_number(db: Session, p: Principal, on: date, tax: Tax | None = None) -> str:
+    """Comprobante de retención al proveedor. Retención de IVA en Venezuela: AAAAMM + secuencia de 8 dígitos
+    (formato SENIAT), con secuencia propia porque se declara en el TXT y debe ser consecutiva. Las demás
+    (ISLR en Venezuela; fuente, IVA e ICA en Colombia, cuyo certificado del periodo se expide aparte):
+    consecutivo interno CR-000001, que no se confunde con los de IVA."""
+    if p.company.country_code == "VE" and tax is not None and tax.kind == "withholding_vat":
+        seq = next_number(db, p.company_id, "withholding_certificate_vat")
         return f"{on:%Y%m}{int(seq.rsplit('-', 1)[-1]):08d}"
-    return seq
+    return next_number(db, p.company_id, "withholding_certificate")
 
 
 def _check_not_withheld(db: Session, items: list, tax_ids: list[int]) -> None:
