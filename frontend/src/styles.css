@@ -31,6 +31,12 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35); --shadow-md: 0 8px 24px rgba(0, 0, 0, .4); --shadow-lg: 0 24px 60px rgba(0, 0, 0, .55);
   }
 }
+/* La aplicación se presenta al 90 % (como el zoom del navegador). Las alturas de ventana se compensan: con zoom,
+   100vh mide el 90 % de la ventana. Sin soporte de zoom se queda al 100 %. */
+:root { --app-zoom: 1; --vh-full: calc(100vh / var(--app-zoom)); }
+@supports (zoom: .9) {
+  :root { zoom: .9; --app-zoom: .9; }
+}
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); }
 h1 { font-size: 1.45rem; font-weight: 700; letter-spacing: -.01em; margin: 0; }
@@ -68,7 +74,7 @@ code, pre { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; fon
 .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; } .between { justify-content: space-between; }
 .spacer { flex: 1; }
 
-.shell { display: grid; grid-template-columns: 240px 1fr; grid-template-rows: 60px 1fr; min-height: 100vh; }
+.shell { display: grid; grid-template-columns: 240px 1fr; grid-template-rows: 60px 1fr; min-height: var(--vh-full); }
 /* Encabezado: tinta Novix con un brillo índigo; el bloque de marca se alinea con la columna del menú y una
    franja con el espectro del logo lo separa del contenido. */
 .topbar {
@@ -123,7 +129,7 @@ code, pre { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; fon
 /* Menú lateral: tinta Novix con brillos índigo y magenta y el isotipo tenue al pie; iconos cian con acento naranja. */
 .sidebar {
   --nav-cyan: var(--chrome-icon); --nav-lime: var(--chrome-accent); --nav-text: #FFFFFF;
-  color: var(--nav-text); padding: .75rem .5rem 1.5rem; overflow-y: auto; height: calc(100vh - 60px); position: sticky; top: 60px;
+  color: var(--nav-text); padding: .75rem .5rem 1.5rem; overflow-y: auto; height: calc(var(--vh-full) - 60px); position: sticky; top: 60px;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased;
   background:
     url("./assets/novix-mark-faint.png") right -48px bottom -36px / 230px auto no-repeat,
@@ -264,7 +270,7 @@ tr.clickable { cursor: pointer; } tr.clickable:hover { background: var(--accent-
 .modal > header button.secondary { width: 32px; height: 32px; padding: 0; box-shadow: none; }
 
 /* Ingreso: panel de marca azul noche con red de nodos + formulario. */
-.login { min-height: 100vh; display: grid; grid-template-columns: minmax(380px, 46%) 1fr; background: var(--bg); }
+.login { min-height: var(--vh-full); display: grid; grid-template-columns: minmax(380px, 46%) 1fr; background: var(--bg); }
 .login-brand {
   position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 2rem;
   padding: 2.5rem 3rem; color: #FFFFFF; overflow: hidden; isolation: isolate;

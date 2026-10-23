@@ -62,7 +62,7 @@ export function Login() {
       <aside className="login-brand">
         <img className="login-wordmark" src={novixLogo} alt="Novix ERP" width={300} height={77} />
         <div className="login-pitch">
-          <h2>ERP Comercial para <span className="brand-gradient-text">Colombia y Venezuela</span></h2>
+          <h2>ERP <span className="brand-gradient-text">Comercial</span></h2>
           <p>Compras, inventario, ventas, logística, facturación electrónica y contabilidad en una sola plataforma.</p>
           <ul className="login-features">
             {FEATURES.map(([icon, text]) => <li key={text}><SectionIcon section={icon} />{text}</li>)}
