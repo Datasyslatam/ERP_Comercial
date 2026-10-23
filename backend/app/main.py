@@ -32,7 +32,7 @@ from app.modules.trace.router import router as trace
 ENCODERS_BY_TYPE[Decimal] = str
 
 API_DESCRIPTION = """
-ERP modular de DATASYS LATAM GROUP.
+Novix ERP: ERP modular de DATASYS LATAM GROUP.
 
 * Autenticación: `POST /api/v1/auth/login` → `Authorization: Bearer <token>`.
 * Contexto multiempresa: toda operación de negocio exige la cabecera `X-Company-Id`.

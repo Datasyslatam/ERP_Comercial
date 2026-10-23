@@ -1,6 +1,6 @@
-# DATASYS ERP
+# Novix ERP
 
-ERP modular para **DATASYS LATAM GROUP**: compras, inventario, calidad, ventas, logística, operaciones,
+**Novix ERP** (antes DATASYS ERP): ERP modular de **DATASYS LATAM GROUP**: compras, inventario, calidad, ventas, logística, operaciones,
 contabilidad, facturación electrónica (Colombia / Venezuela), indicadores e importación de datos reales.
 
 > **Estado**: listo para un entorno controlado de pruebas. La facturación electrónica opera con

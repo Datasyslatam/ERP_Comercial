@@ -1,4 +1,5 @@
-import { useId, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import novixMark from "../assets/novix-mark.png";
 
 // Iconos lineales del menú lateral: trazo principal en cian (.ico-main) y detalle en lima (.ico-acc).
 function Icon({ children }: { children: ReactNode }) {
@@ -69,26 +70,9 @@ export function Chevron({ className = "" }: { className?: string }) {
   );
 }
 
-/** Marca de Datasys Latam Group: nodos conectados sobre un cuadro cobalto→cian. */
-export function BrandMark() {
-  // id único por instancia: con un id repetido, una copia oculta (display: none) deja sin degradado a las demás.
-  const grad = `brand-grad-${useId().replace(/:/g, "")}`;
-  return (
-    <svg className="brand-mark" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" focusable="false">
-      <defs>
-        <linearGradient id={grad} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#0052CC" />
-          <stop offset="1" stopColor="#00B4D8" />
-        </linearGradient>
-      </defs>
-      <rect width="32" height="32" rx="8" fill={`url(#${grad})`} />
-      <path d="M10 9.5v13h5.5a6.5 6.5 0 0 0 0-13z" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M15.5 16h7" stroke="#FFFFFF" strokeOpacity=".7" strokeWidth="1.4" strokeLinecap="round" />
-      <circle cx="23" cy="16" r="2.2" fill="#A3E635" />
-      <circle cx="10" cy="9.5" r="1.8" fill="#FFFFFF" />
-      <circle cx="10" cy="22.5" r="1.8" fill="#FFFFFF" />
-    </svg>
-  );
+/** Isotipo de Novix ERP: dos cintas entrelazadas (azul → cian y naranja → magenta). */
+export function BrandMark({ size = 32 }: { size?: number }) {
+  return <img className="brand-mark" src={novixMark} width={size} height={size} alt="" aria-hidden="true" />;
 }
 
 function TopIcon({ children }: { children: ReactNode }) {

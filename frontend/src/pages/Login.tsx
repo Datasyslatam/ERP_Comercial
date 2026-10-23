@@ -3,6 +3,7 @@ import { ArrowRightIcon, BrandMark, EyeIcon, LockIcon, MailIcon, SectionIcon } f
 import { Alert } from "../components/ui";
 import { serverStatus } from "../lib/api";
 import { useSession } from "../lib/session";
+import novixLogo from "../assets/novix-logo.png";
 
 const ENVIRONMENT: Record<string, string> = {
   development: "Desarrollo", test: "Pruebas", staging: "Preproducción", production: "Producción",
@@ -59,23 +60,20 @@ export function Login() {
   return (
     <div className="login">
       <aside className="login-brand">
-        <div className="login-logo">
-          <BrandMark />
-          <div className="brand-text"><strong>DATASYS</strong><span>LATAM GROUP · ERP</span></div>
-        </div>
+        <img className="login-wordmark" src={novixLogo} alt="Novix ERP" width={300} height={77} />
         <div className="login-pitch">
-          <h2>ERP Comercial para Colombia y Venezuela</h2>
+          <h2>ERP Comercial para <span className="brand-gradient-text">Colombia y Venezuela</span></h2>
           <p>Compras, inventario, ventas, logística, facturación electrónica y contabilidad en una sola plataforma.</p>
           <ul className="login-features">
             {FEATURES.map(([icon, text]) => <li key={text}><SectionIcon section={icon} />{text}</li>)}
           </ul>
         </div>
-        <footer>© {new Date().getFullYear()} Datasys Latam Group</footer>
+        <footer>© {new Date().getFullYear()} Novix ERP · Datasys Latam Group</footer>
       </aside>
 
       <main className="login-main">
         <form onSubmit={submit} className="login-card" aria-labelledby="login-title">
-          <div className="login-card-logo"><BrandMark /></div>
+          <div className="login-card-logo"><BrandMark size={40} /><div className="brand-text"><strong>NOVIX</strong><span>ERP</span></div></div>
           <h1 id="login-title">Iniciar sesión</h1>
           <p className="muted">Ingrese con su usuario corporativo</p>
 
