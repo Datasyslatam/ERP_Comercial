@@ -89,7 +89,7 @@ class _Pdf(FPDF):
         self.alias_nb_pages()
         self.set_title(latin(f"{data.title} {data.number}"))
         self.set_author(latin(data.company.get("name")))
-        self.set_creator("DATASYS ERP")
+        self.set_creator("Novix ERP")
 
     def header(self):
         d, c = self.data, self.data.company
@@ -127,7 +127,7 @@ class _Pdf(FPDF):
         self.set_y(-13)
         self.set_font("helvetica", "", 7.5)
         self.set_text_color(*MUTED)
-        self.cell(0, 4, latin(f"Generado por DATASYS ERP el {fdate(datetime.now())}"), align="L")
+        self.cell(0, 4, latin(f"Generado por Novix ERP el {fdate(datetime.now())}"), align="L")
         self.set_x(14)
         self.cell(0, 4, latin(f"Página {self.page_no()}/{{nb}}"), align="R")
 

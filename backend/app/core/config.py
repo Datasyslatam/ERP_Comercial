@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "DATASYS ERP"
+    app_name: str = "Novix ERP"
     environment: Literal["development", "test", "staging", "production"] = "development"
     debug: bool = False
 

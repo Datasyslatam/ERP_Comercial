@@ -137,8 +137,8 @@ export function Layout() {
           </button>
           <BrandMark />
           <div className="brand-text">
-            <strong>DATASYS</strong>
-            <span>LATAM GROUP · ERP</span>
+            <strong>NOVIX</strong>
+            <span>ERP</span>
           </div>
         </div>
         {page && (
