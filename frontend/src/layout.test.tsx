@@ -16,10 +16,11 @@ const renderAt = (path: string) => render(<MemoryRouter initialEntries={[path]}>
 
 describe("Menú lateral", () => {
   it("despliega la sección de la ruta actual y deja las demás plegadas", () => {
-    renderAt("/contabilidad/cartera");
+    renderAt("/contabilidad/cuentas-por-pagar");
     expect(screen.getByRole("button", { name: "Contabilidad" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "Compras" })).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByRole("link", { name: "Cartera por edades" })).toHaveClass("active");
+    expect(screen.getByRole("link", { name: "Cuentas por pagar" })).toHaveClass("active");
+    expect(screen.getByRole("link", { name: "Cuentas por cobrar" })).not.toHaveClass("active");
   });
 
   it("despliega y pliega una sección con cada clic", () => {
@@ -64,7 +65,7 @@ describe("Barra superior", () => {
 
   it("elige la opción más específica de la ruta", () => {
     expect(pageOf("/")).toEqual({ section: "Gerencia", label: "Dashboard ejecutivo" });
-    expect(pageOf("/contabilidad/cartera")).toEqual({ section: "Contabilidad", label: "Cartera por edades" });
+    expect(pageOf("/contabilidad/cuentas-por-cobrar")).toEqual({ section: "Contabilidad", label: "Cuentas por cobrar" });
     expect(pageOf("/facturacion")?.label).toBe("Facturación electrónica");
     expect(pageOf("/otra")).toBeUndefined();
   });

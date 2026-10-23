@@ -260,7 +260,7 @@ def aging_xlsx(kind: str = Query(pattern="^(receivable|payable)$"), as_of: date 
     doc_cols = [("party", "Tercero"), ("document", "Documento"), ("due_date", "Vence"), ("days_overdue", "Días vencido"),
                 ("currency", "Moneda"), ("open_amount", "Saldo (moneda del documento)"),
                 ("open_amount_functional", f"Saldo ({p.company.functional_currency})")]
-    title = "Cartera por edades" if kind == "receivable" else "Cuentas por pagar por edades"
+    title = "Cuentas por cobrar por edades" if kind == "receivable" else "Cuentas por pagar por edades"
     data = xlsx(title, p.company.legal_name, p.company.tax_id, f"Corte al {as_of:%d/%m/%Y}", [
         ("Por tercero", party_cols, by_party, totals),
         ("Por documento", doc_cols, detail["items"], {"open_amount_functional": detail["total"]})])

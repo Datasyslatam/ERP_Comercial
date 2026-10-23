@@ -155,7 +155,7 @@
 ## Contabilidad
 - **Comprobantes**: los documentos comerciales se contabilizan solos. Los comprobantes manuales se crean
   en borrador (deben cuadrar) y los contabiliza otro usuario. Los contabilizados no se editan: se reversan.
-- **Cartera y pagos** (Contabilidad → Cartera por edades), para cuentas por cobrar o por pagar:
+- **Cuentas por cobrar** y **Cuentas por pagar** (Contabilidad → Cuentas por cobrar / Cuentas por pagar):
   - **Filtros y vistas**: tercero, fecha de corte (define el rango de vencimiento), vista *Por documento* o
     *Por tercero* (rangos por vencer, 1-30, 31-60, 61-90, más de 90 días, anticipos y saldo neto; en clientes,
     el cupo de crédito resaltado si se supera) y exportación a **Excel** con ambas hojas.

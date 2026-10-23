@@ -188,7 +188,7 @@ def _has_items(db, c, kind) -> bool:
 
 @kpi("ar_balance", "finance", "Cuentas por cobrar", "Saldo abierto de cartera de clientes a la fecha de corte.",
      "Σ saldo abierto × tasa de las partidas por cobrar", "open_items(kind=receivable)", "currency", "lower_better",
-     ("customer_id",), drilldown="/contabilidad/cartera?kind=receivable")
+     ("customer_id",), drilldown="/contabilidad/cuentas-por-cobrar")
 def _ar(db, c, s, e, f):
     if not _has_items(db, c, "receivable"):
         return Result(None, notes=["No hay cartera registrada (facturas o saldos iniciales)"])
@@ -197,7 +197,7 @@ def _ar(db, c, s, e, f):
 
 @kpi("ar_overdue_pct", "finance", "Cartera vencida", "Porcentaje de la cartera con fecha de vencimiento superada.",
      "Cartera vencida / Cartera total × 100", "open_items", "pct", "lower_better", ("customer_id",),
-     drilldown="/contabilidad/cartera?kind=receivable")
+     drilldown="/contabilidad/cuentas-por-cobrar")
 def _ar_over(db, c, s, e, f):
     total = _open_items(db, c, "receivable", e, f=f)
     return Result(_pct(_open_items(db, c, "receivable", e, True, f), total), None, total,
@@ -206,7 +206,7 @@ def _ar_over(db, c, s, e, f):
 
 @kpi("ap_balance", "finance", "Cuentas por pagar", "Saldo abierto con proveedores a la fecha de corte.",
      "Σ saldo abierto × tasa de las partidas por pagar", "open_items(kind=payable)", "currency", "neutral",
-     ("supplier_id",), drilldown="/contabilidad/cartera?kind=payable")
+     ("supplier_id",), drilldown="/contabilidad/cuentas-por-pagar")
 def _ap(db, c, s, e, f):
     if not _has_items(db, c, "payable"):
         return Result(None, notes=["No hay cuentas por pagar registradas"])
@@ -215,7 +215,7 @@ def _ap(db, c, s, e, f):
 
 @kpi("dso", "finance", "Días de cartera (DSO)", "Días promedio de cobro.",
      "Cartera al corte / Ingresos del periodo × días del periodo", "open_items + journal_lines", "days",
-     "lower_better", drilldown="/contabilidad/cartera?kind=receivable")
+     "lower_better", drilldown="/contabilidad/cuentas-por-cobrar")
 def _dso(db, c, s, e, f):
     rev = _gl(db, c, s, e, ("revenue",), Filters())
     if not rev:

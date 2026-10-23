@@ -70,6 +70,8 @@ function Routed() {
         <Route path="contabilidad/estado-resultados" element={<ReportsPage />} />
         <Route path="contabilidad/flujo-efectivo" element={<ReportsPage />} />
         <Route path="contabilidad/comprobantes" element={<EntriesPage />} />
+        <Route path="contabilidad/cuentas-por-cobrar" element={<ReceivablesPage />} />
+        <Route path="contabilidad/cuentas-por-pagar" element={<ReceivablesPage />} />
         <Route path="contabilidad/cartera" element={<ReceivablesPage />} />
         <Route path="contabilidad/pagos" element={<PaymentsPage />} />
         <Route path="contabilidad/conciliacion" element={<BankReconciliationPage />} />
