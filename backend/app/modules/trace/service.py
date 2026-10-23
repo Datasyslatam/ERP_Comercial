@@ -71,7 +71,7 @@ TYPES: dict[str, NodeType] = {
     "sales_invoice": NodeType(SalesInvoice, "einvoicing.invoice.read", "Factura electrónica", "sales", 5,
                               "/facturacion"),
     "payment": NodeType(Payment, "accounting.payments.read", "Pago / recaudo", "accounting", 7,
-                        "/contabilidad/cartera"),
+                        "/contabilidad/pagos"),
     "journal_entry": NodeType(JournalEntry, "accounting.journal.read", "Comprobante contable", "accounting", 8,
                               "/contabilidad/comprobantes"),
 }

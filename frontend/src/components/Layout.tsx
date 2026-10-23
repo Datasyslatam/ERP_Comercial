@@ -55,7 +55,8 @@ export const NAV: { section: string; items: NavItem[] }[] = [
   { section: "Contabilidad", items: [
     { to: "/contabilidad/reportes", label: "Estados financieros", perm: "accounting.reports.read" },
     { to: "/contabilidad/comprobantes", label: "Comprobantes", perm: "accounting.journal.read" },
-    { to: "/contabilidad/cartera", label: "Cartera por edades", perm: "accounting.payments.read" },
+    { to: "/contabilidad/cuentas-por-cobrar", label: "Cuentas por cobrar", perm: "accounting.payments.read" },
+    { to: "/contabilidad/cuentas-por-pagar", label: "Cuentas por pagar", perm: "accounting.payments.read" },
     { to: "/contabilidad/pagos", label: "Pagos y recaudos", perm: "accounting.payments.read" },
     { to: "/contabilidad/conciliacion", label: "Conciliación bancaria", perm: "accounting.bank.read" },
     { to: "/contabilidad/fiscal", label: "Libros y reportes fiscales", perm: "accounting.tax_reports.read" },

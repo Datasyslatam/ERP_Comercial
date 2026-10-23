@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ActionButton, Alert, DataTable, Form, Modal, Page } from "../components/ui";
 import { download, get, Json, post } from "../lib/api";
 import { fmtDate, fmtMoney } from "../lib/format";
@@ -14,7 +15,11 @@ const BUCKETS = ["current", "1_30", "31_60", "61_90", "over_90", "advances"];
  * cuenta, anticipos y pago de varias facturas del mismo tercero. */
 export function ReceivablesPage() {
   const { can } = useSession();
-  const [kind, setKind] = useState("receivable");
+  // El tipo sale de la ruta (cuentas-por-cobrar / cuentas-por-pagar) o de ?kind= (enlaces de los indicadores)
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
+  const kind = pathname.endsWith("cuentas-por-pagar") || new URLSearchParams(search).get("kind") === "payable"
+    ? "payable" : "receivable";
   const [asOf, setAsOf] = useState(today());
   const [party, setParty] = useState("");
   const [view, setView] = useState<"documents" | "parties">("documents");
@@ -43,11 +48,17 @@ export function ReceivablesPage() {
     else next[r.open_item_id] = r;
     setSelected(next);
   };
-  const changeKind = (k: string) => { setKind(k); setParty(""); setSelected({}); };
+  const changeKind = (k: string) => {
+    setParty("");
+    setSelected({});
+    navigate(k === "payable" ? "/contabilidad/cuentas-por-pagar" : "/contabilidad/cuentas-por-cobrar");
+  };
   const labels = aging.data?.labels ?? {};
   const payable = can("accounting.payments.create");
   return (
-    <Page title="Cartera y pagos" subtitle={receivable ? "Cuentas por cobrar a clientes" : "Cuentas por pagar a proveedores"} actions={<>
+    <Page title={receivable ? "Cuentas por cobrar" : "Cuentas por pagar"} subtitle={receivable
+      ? "Cartera de clientes por edades, anticipos, estado de cuenta y conciliación con la contabilidad"
+      : "Obligaciones con proveedores por edades, anticipos, estado de cuenta y conciliación con la contabilidad"} actions={<>
       <select aria-label="Tipo" value={kind} onChange={(e) => changeKind(e.target.value)}>
         <option value="receivable">Cuentas por cobrar</option><option value="payable">Cuentas por pagar</option></select>
       <select aria-label="Tercero" value={party} onChange={(e) => { setParty(e.target.value); setSelected({}); }}>
