@@ -33,8 +33,14 @@ def _company(db, code):
 
 
 def cmd_init(args):
+    from sqlalchemy import select
+
+    from app.modules.org.models import Company
+
     with SessionLocal() as db:
         org.sync_reference_data(db)
+        for company in db.scalars(select(Company)):
+            org.install_pack_accounts(db, company)
         db.commit()
     print("Datos de referencia sincronizados")
 

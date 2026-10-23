@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,8 +15,10 @@ from app.core.db import get_db
 from app.core.deps import Principal, require
 from app.core.schemas import CurrencyField, ReasonIn
 from app.core.serialize import paginate, to_dict
+from app.modules.accounting import receivables as cartera
 from app.modules.accounting import service as svc
 from app.modules.accounting.models import (
+    AdvanceApplication,
     BankStatement,
     BudgetLine,
     FiscalPeriod,
@@ -94,7 +96,8 @@ class PaymentIn(BaseModel):
     amount: Decimal = Field(gt=0)
     reference: str | None = Field(default=None, max_length=80)
     idempotency_key: str = Field(min_length=8, max_length=160)
-    allocations: list[AllocationIn] = Field(min_length=1)
+    # Sin facturas (o por menos del pago): el excedente queda como anticipo del tercero
+    allocations: list[AllocationIn] = Field(default_factory=list, max_length=200)
     withholdings: list[WithholdingIn] = []
 
 
@@ -230,9 +233,124 @@ def open_items(kind: str = Query(pattern="^(receivable|payable)$"), party_id: in
 
 
 @router.get("/aging")
-def aging(kind: str = Query(pattern="^(receivable|payable)$"), as_of: date | None = None,
+def aging(kind: str = Query(pattern="^(receivable|payable)$"), as_of: date | None = None, party_id: int | None = None,
           p: Principal = Depends(require("accounting.reports.read")), db: Session = Depends(get_db)):
-    return svc.aging(db, p.company_id, kind, as_of or date.today())
+    return svc.aging(db, p.company_id, kind, as_of or date.today(), party_id)
+
+
+@router.get("/aging/by-party")
+def aging_by_party(kind: str = Query(pattern="^(receivable|payable)$"), as_of: date | None = None,
+                   p: Principal = Depends(require("accounting.reports.read")), db: Session = Depends(get_db)):
+    """Cartera por tercero: saldo por rango de vencimiento, anticipos y total neto."""
+    return cartera.aging_by_party(db, p.company, kind, as_of or date.today())
+
+
+@router.get("/aging.xlsx")
+def aging_xlsx(kind: str = Query(pattern="^(receivable|payable)$"), as_of: date | None = None,
+               p: Principal = Depends(require("accounting.reports.export")), db: Session = Depends(get_db)):
+    from app.modules.accounting.fiscal import xlsx
+
+    as_of = as_of or date.today()
+    by_party = cartera.aging_by_party(db, p.company, kind, as_of)
+    detail = svc.aging(db, p.company_id, kind, as_of)
+    labels = detail["labels"]
+    party_cols = [("tax_id", "Identificación"), ("party", "Tercero"), ("documents", "Documentos")] + \
+        [(b, labels[b]) for b in cartera.BUCKETS] + [("advances", labels["advances"]), ("total", "Saldo neto")]
+    totals = {k: sum((r[k] for r in by_party), svc.ZERO) for k, _ in party_cols[3:]}
+    doc_cols = [("party", "Tercero"), ("document", "Documento"), ("due_date", "Vence"), ("days_overdue", "Días vencido"),
+                ("currency", "Moneda"), ("open_amount", "Saldo (moneda del documento)"),
+                ("open_amount_functional", f"Saldo ({p.company.functional_currency})")]
+    title = "Cartera por edades" if kind == "receivable" else "Cuentas por pagar por edades"
+    data = xlsx(title, p.company.legal_name, p.company.tax_id, f"Corte al {as_of:%d/%m/%Y}", [
+        ("Por tercero", party_cols, by_party, totals),
+        ("Por documento", doc_cols, detail["items"], {"open_amount_functional": detail["total"]})])
+    log_action(db, "export", "aging", None, f"{title} al {as_of}")
+    db.commit()
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="cartera_{kind}_{as_of:%Y%m%d}.xlsx"'})
+
+
+@router.get("/reconciliation")
+def subledger_reconciliation(kind: str = Query(pattern="^(receivable|payable)$"),
+                             p: Principal = Depends(require("accounting.reports.read")), db: Session = Depends(get_db)):
+    """Conciliación del auxiliar de cartera (partidas abiertas) contra las cuentas de control del mayor."""
+    return cartera.reconciliation(db, p.company, kind)
+
+
+@router.get("/party-statement")
+def party_statement(party_id: int, start: date, end: date, kind: str = Query(pattern="^(receivable|payable)$"),
+                    p: Principal = Depends(require("accounting.payments.read")), db: Session = Depends(get_db)):
+    """Estado de cuenta del tercero: saldo inicial, movimientos con saldo corrido y documentos pendientes."""
+    return cartera.party_statement(db, p.company, party_id, kind, start, end)
+
+
+@router.get("/party-statement/pdf")
+def party_statement_pdf(party_id: int, start: date, end: date, kind: str = Query(pattern="^(receivable|payable)$"),
+                        p: Principal = Depends(require("accounting.payments.read")), db: Session = Depends(get_db)):
+    filename, data = cartera.statement_pdf(db, p.company, party_id, kind, start, end)
+    log_action(db, "export", "party_statement", party_id, f"Estado de cuenta {start}..{end}")
+    db.commit()
+    return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{filename}"'})
+
+
+@router.get("/party-statement/email-defaults")
+def party_statement_email_defaults(party_id: int, start: date, end: date,
+                                   kind: str = Query(pattern="^(receivable|payable)$"),
+                                   p: Principal = Depends(require("accounting.payments.read")),
+                                   db: Session = Depends(get_db)):
+    return cartera.statement_message(db, p.company, party_id, kind, end)
+
+
+class StatementEmailIn(BaseModel):
+    party_id: int
+    kind: str = Field(pattern="^(receivable|payable)$")
+    start: date
+    end: date
+    to: list[str] = Field(min_length=1, max_length=10)
+    cc: list[str] = Field(default_factory=list, max_length=10)
+    subject: str | None = Field(default=None, max_length=255)
+    body: str | None = Field(default=None, max_length=5000)
+
+
+@router.post("/party-statement/email", status_code=202)
+def party_statement_email(body: StatementEmailIn, p: Principal = Depends(require("accounting.payments.create")),
+                          db: Session = Depends(get_db)):
+    """Envía el estado de cuenta en PDF por correo (cola con reintentos; el PDF se genera al enviar)."""
+    em = cartera.queue_statement_email(db, p, **body.model_dump())
+    db.commit()
+    return to_dict(em)
+
+
+class ApplyAdvanceIn(BaseModel):
+    application_date: date | None = None
+    allocations: list[AllocationIn] = Field(min_length=1, max_length=200)
+
+
+@router.post("/advances/{item_id}/apply", status_code=201)
+def apply_advance(item_id: int, body: ApplyAdvanceIn, p: Principal = Depends(require("accounting.payments.create")),
+                  db: Session = Depends(get_db)):
+    """Cruza un anticipo (saldo a favor del tercero) contra sus facturas abiertas."""
+    apps = svc.apply_advance(db, p, item_id, body.model_dump())
+    db.commit()
+    return [to_dict(a) for a in apps]
+
+
+@router.get("/advance-applications")
+def list_advance_applications(party_id: int | None = None, limit: int = Query(50, le=500), offset: int = 0,
+                              p: Principal = Depends(require("accounting.payments.read")),
+                              db: Session = Depends(get_db)):
+    stmt = select(AdvanceApplication).where(AdvanceApplication.company_id == p.company_id)
+    if party_id:
+        stmt = stmt.join(OpenItem, OpenItem.id == AdvanceApplication.advance_item_id).where(OpenItem.party_id == party_id)
+    return paginate(db, stmt.order_by(AdvanceApplication.id.desc()), limit, offset)
+
+
+@router.post("/advance-applications/{app_id}/void")
+def void_advance_application(app_id: int, body: ReasonIn, p: Principal = Depends(require("accounting.payments.void")),
+                             db: Session = Depends(get_db)):
+    apps = svc.void_advance_application(db, p, app_id, body.reason)
+    db.commit()
+    return [to_dict(a) for a in apps]
 
 
 @router.get("/payments")

@@ -44,6 +44,8 @@ button.secondary { background: var(--surface); color: var(--text); border-color:
 button.secondary:hover { background: var(--accent-soft); border-color: var(--accent); }
 button.danger { background: var(--crit); color: #FFFFFF; }
 button.danger:hover { filter: brightness(1.08); background: var(--crit); }
+button.link { background: none; border: none; padding: 0; color: var(--accent, inherit); text-decoration: underline; cursor: pointer; font: inherit; }
+span.danger { color: var(--crit); font-weight: 600; }
 button:disabled { opacity: .55; cursor: wait; }
 input, select, textarea {
   font: inherit; padding: .48rem .65rem; border: 1px solid var(--border-strong); border-radius: 8px;

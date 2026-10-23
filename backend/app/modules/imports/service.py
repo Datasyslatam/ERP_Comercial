@@ -63,7 +63,7 @@ SPECS: dict[str, dict[str, tuple[bool, str, str]]] = {
         "party_code": (True, "str", "Código del cliente"), "document_number": (True, "str", ""),
         "issue_date": (True, "date", ""), "due_date": (True, "date", ""), "currency": (True, "str", ""),
         "exchange_rate": (False, "decimal", "Obligatoria si la moneda no es la funcional"),
-        "amount": (True, "decimal", "Saldo pendiente a la fecha de corte"),
+        "amount": (True, "decimal", "Saldo pendiente a la fecha de corte (negativo = anticipo o saldo a favor del tercero)"),
     },
 }
 SPECS["opening_payables"] = {**SPECS["opening_receivables"], "party_code": (True, "str", "Código del proveedor")}
@@ -264,8 +264,8 @@ def _validate_row(entity: str, data: dict, ctx: _Ctx, seen: set, company) -> tup
             errors.append("Duplicado: documento ya cargado para el tercero")
         else:
             seen.add((kind, party.id, v["document_number"]))
-        if v["amount"] is not None and v["amount"] <= 0:
-            errors.append("El saldo debe ser positivo")
+        if v["amount"] is not None and v["amount"] == 0:
+            errors.append("El saldo no puede ser cero (negativo = anticipo o saldo a favor del tercero)")
         if v["currency"] != company.functional_currency and not v.get("exchange_rate"):
             errors.append("Falta la tasa de cambio para moneda extranjera")
         if v["due_date"] and v["issue_date"] and v["due_date"] < v["issue_date"]:
@@ -447,17 +447,26 @@ def post_batch(db: Session, p: Principal, batch_id: int) -> OpeningBalanceBatch:
             party = ctx.parties[d["party_code"]]
             rate = Decimal(d.get("exchange_rate") or 1)
             amount = money(Decimal(d["amount"]))
-            oi = OpenItem(company_id=p.company_id, kind=kind, party_id=party.id, document_type="opening",
+            # Saldo negativo: anticipo recibido del cliente o entregado al proveedor (saldo a favor del tercero)
+            advance = amount < 0
+            amount = abs(amount)
+            oi = OpenItem(company_id=p.company_id, kind=kind, party_id=party.id,
+                          document_type="opening_advance" if advance else "opening",
                           document_id=row.id, document_number=d["document_number"],
                           issue_date=date.fromisoformat(d["issue_date"]), due_date=date.fromisoformat(d["due_date"]),
                           currency=d["currency"], exchange_rate=rate, original_amount=amount, open_amount=amount)
             db.add(oi)
             value = money(amount * rate)
-            acc = posting_account(db, p.company_id, "accounts_receivable" if kind == "receivable" else "accounts_payable")
-            lines.append(LineSpec(account_id=acc, debit=value if kind == "receivable" else ZERO,
-                                  credit=value if kind == "payable" else ZERO, party_id=party.id,
-                                  currency=d["currency"], amount_currency=amount, exchange_rate=rate,
-                                  description=f"Saldo inicial {d['document_number']}"))
+            if advance:
+                key = "customer_advances" if kind == "receivable" else "supplier_advances"
+            else:
+                key = "accounts_receivable" if kind == "receivable" else "accounts_payable"
+            debit_side = (kind == "receivable") != advance
+            lines.append(LineSpec(account_id=posting_account(db, p.company_id, key), debit=value if debit_side else ZERO,
+                                  credit=ZERO if debit_side else value, party_id=party.id,
+                                  currency=d["currency"], amount_currency=amount if debit_side else -amount,
+                                  exchange_rate=rate,
+                                  description=f"{'Anticipo inicial' if advance else 'Saldo inicial'} {d['document_number']}"))
     if by_item:
         from app.modules.accounting.posting import _item_account
 
@@ -472,7 +481,8 @@ def post_batch(db: Session, p: Principal, batch_id: int) -> OpeningBalanceBatch:
                        description=f"Saldos iniciales {b.kind} al {b.cutoff_date}: {b.source_description[:200]}",
                        lines=lines, idempotency_key=f"opening_batch:{b.id}", source_type="opening_balance",
                        source_id=b.id, user_id=p.user_id)
-    for oi in db.scalars(select(OpenItem).where(OpenItem.document_type == "opening", OpenItem.journal_entry_id.is_(None),
+    for oi in db.scalars(select(OpenItem).where(OpenItem.document_type.in_(("opening", "opening_advance")),
+                                                OpenItem.journal_entry_id.is_(None),
                                                 OpenItem.company_id == p.company_id)):
         oi.journal_entry_id = entry.id
     b.status, b.posted_at, b.journal_entry_id = "posted", datetime.now(UTC), entry.id

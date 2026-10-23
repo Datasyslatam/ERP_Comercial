@@ -10,13 +10,15 @@ from sqlalchemy.orm import Session
 from app.core.audit import log_action
 from app.core.crud import get_owned
 from app.core.deps import Principal
-from app.core.errors import BusinessRuleViolation, Conflict
+from app.core.errors import BusinessRuleViolation, Conflict, NotFound
 from app.core.money import ZERO, money
 from app.core.numbering import next_number
 from app.core.policies import enforce_approval_limit, enforce_sod
 from app.modules.accounting.ledger import LineSpec, get_open_period, post_entry, posting_account, reverse_entry
 from app.modules.accounting.models import (
+    ADVANCE_TYPES,
     Account,
+    AdvanceApplication,
     BankAccount,
     BankStatement,
     BankStatementLine,
@@ -28,7 +30,7 @@ from app.modules.accounting.models import (
     PaymentAllocation,
     PaymentWithholding,
 )
-from app.modules.accounting.posting import post_payment
+from app.modules.accounting.posting import post_advance_application, post_payment
 from app.modules.masters.models import Party, Tax
 
 
@@ -162,6 +164,8 @@ def register_payment(db: Session, p: Principal, data: dict) -> Payment:
                   method=data["method"], currency=data["currency"], exchange_rate=rate,
                   amount=money(data["amount"]), reference=data.get("reference"),
                   idempotency_key=data["idempotency_key"], created_by_id=p.user_id)
+    if (kind == "receipt" and not party.is_customer) or (kind == "disbursement" and not party.is_supplier):
+        raise BusinessRuleViolation("El tercero no es " + ("cliente" if kind == "receipt" else "proveedor"))
     wh_total = ZERO
     side = "sales" if kind == "receipt" else "purchases"
     for w in data.get("withholdings") or []:
@@ -187,6 +191,8 @@ def register_payment(db: Session, p: Principal, data: dict) -> Payment:
             raise BusinessRuleViolation("La partida no pertenece al tercero")
         if item.kind != ("receivable" if kind == "receipt" else "payable"):
             raise BusinessRuleViolation("Tipo de partida incompatible con el pago")
+        if item.document_type in ADVANCE_TYPES:
+            raise BusinessRuleViolation("Un anticipo no se paga: se cruza contra facturas")
         if item.currency != pay.currency:
             raise BusinessRuleViolation("La moneda del pago debe coincidir con la de la partida")
         amount = money(a["amount"])
@@ -205,10 +211,16 @@ def register_payment(db: Session, p: Principal, data: dict) -> Payment:
         wh_taxes = {t.id: t for t in db.scalars(select(Tax).where(Tax.id.in_([w.tax_id for w in pay.withholdings])))}
         for w in pay.withholdings:
             w.certificate_number = withholding_certificate_number(db, p, pay.payment_date, wh_taxes[w.tax_id])
-    if alloc_total != pay.amount + wh_total:
-        raise BusinessRuleViolation("La suma aplicada debe ser igual al pago más las retenciones",
+    if wh_total and not allocations:
+        raise BusinessRuleViolation("Las retenciones se practican sobre facturas: aplique el pago a una factura")
+    if alloc_total > pay.amount + wh_total:
+        raise BusinessRuleViolation("Lo aplicado supera el pago más las retenciones",
                                     details={"applied": str(alloc_total), "payment": str(pay.amount),
                                              "withholdings": str(wh_total)})
+    if alloc_total < wh_total:
+        raise BusinessRuleViolation("Las retenciones no pueden superar lo aplicado a facturas")
+    # Lo que no se aplica a facturas queda como anticipo: saldo a favor del tercero para cruzar después.
+    advance = pay.amount + wh_total - alloc_total
     igtf_tax = None
     if p.company.country_code == "VE" and pay.currency != p.company.functional_currency:
         igtf_tax = db.scalar(select(Tax).where(Tax.company_id == p.company_id, Tax.kind == "igtf",
@@ -218,8 +230,14 @@ def register_payment(db: Session, p: Principal, data: dict) -> Payment:
             pay.igtf_amount = money(pay.amount * igtf_tax.rate / 100)
     db.add(pay)
     db.flush()
-    entry = post_payment(db, pay, allocations, p.user_id, igtf_tax)
+    entry = post_payment(db, pay, allocations, p.user_id, igtf_tax, advance)
     pay.journal_entry_id = entry.id
+    if advance:
+        db.add(OpenItem(company_id=p.company_id, kind="receivable" if kind == "receipt" else "payable",
+                        party_id=party.id, document_type="advance", document_id=pay.id, document_number=pay.number,
+                        issue_date=pay.payment_date, due_date=pay.payment_date, currency=pay.currency,
+                        exchange_rate=pay.exchange_rate, original_amount=advance, open_amount=advance,
+                        journal_entry_id=entry.id))
     log_action(db, "post", "payments", pay.id, f"{pay.number} {pay.amount} {pay.currency}")
     return pay
 
@@ -228,35 +246,114 @@ def void_payment(db: Session, p: Principal, payment_id: int, reason: str, on: da
     pay = get_owned(db, Payment, payment_id, p.company_id, lock=True)
     if pay.status == "voided":
         raise Conflict("El pago ya está anulado")
+    adv = db.scalar(select(OpenItem).where(OpenItem.company_id == p.company_id, OpenItem.document_type == "advance",
+                                           OpenItem.document_id == pay.id).with_for_update())
+    if adv is not None and adv.open_amount != adv.original_amount:
+        raise Conflict("El anticipo de este pago ya se cruzó con facturas: anule primero esos cruces")
     reverse_entry(db, company_id=p.company_id, entry_id=pay.journal_entry_id, reversal_date=on or date.today(),
                   reason=f"Anulación pago {pay.number}: {reason}", user_id=p.user_id)
     for a in pay.allocations:
         item = db.get(OpenItem, a.open_item_id, with_for_update=True)
         item.open_amount += a.amount
         item.status = "open" if item.open_amount == item.original_amount else "partial"
+    if adv is not None:
+        adv.open_amount, adv.status = ZERO, "cancelled"
     pay.status = "voided"
     log_action(db, "void", "payments", pay.id, reason)
     return pay
 
 
-def aging(db: Session, company_id: int, kind: str, as_of: date) -> dict:
-    rows = db.execute(select(OpenItem, Party.legal_name).join(Party, Party.id == OpenItem.party_id).where(
-        OpenItem.company_id == company_id, OpenItem.kind == kind, OpenItem.status.in_(("open", "partial")))).all()
-    buckets = ("current", "1_30", "31_60", "61_90", "over_90")
+# ---------------------------------------------------------------- anticipos y saldos a favor
+def apply_advance(db: Session, p: Principal, advance_item_id: int, data: dict) -> list[AdvanceApplication]:
+    """Cruza un anticipo (saldo a favor del tercero) contra sus facturas abiertas en la misma moneda."""
+    adv = db.scalar(select(OpenItem).where(OpenItem.id == advance_item_id).with_for_update())
+    if adv is None or adv.company_id != p.company_id or adv.document_type not in ADVANCE_TYPES:
+        raise NotFound("Anticipo no encontrado")
+    if adv.status not in ("open", "partial"):
+        raise BusinessRuleViolation("El anticipo no tiene saldo disponible")
+    on = data.get("application_date") or date.today()
+    if on < adv.issue_date:
+        raise BusinessRuleViolation("El cruce no puede ser anterior al anticipo")
+    rows, total = [], ZERO
+    for a in data["allocations"]:
+        item = db.scalar(select(OpenItem).where(OpenItem.id == a["open_item_id"]).with_for_update())
+        if item is None or item.company_id != p.company_id or item.party_id != adv.party_id or item.kind != adv.kind:
+            raise BusinessRuleViolation("La partida no pertenece al mismo tercero")
+        if item.document_type in ADVANCE_TYPES:
+            raise BusinessRuleViolation("Un anticipo no se cruza contra otro anticipo")
+        if item.currency != adv.currency:
+            raise BusinessRuleViolation("El anticipo y la factura deben estar en la misma moneda")
+        amount = money(a["amount"])
+        if amount <= 0 or amount > item.open_amount:
+            raise BusinessRuleViolation(f"Monto inválido para {item.document_number}: saldo {item.open_amount}")
+        rows.append((item, amount))
+        total += amount
+    if not rows:
+        raise BusinessRuleViolation("Indique al menos una factura")
+    if total > adv.open_amount:
+        raise BusinessRuleViolation(f"El cruce ({total}) supera el saldo del anticipo ({adv.open_amount})")
+    apps = [AdvanceApplication(company_id=p.company_id, advance_item_id=adv.id, open_item_id=item.id, amount=amount,
+                               application_date=on, created_by_id=p.user_id) for item, amount in rows]
+    db.add_all(apps)
+    db.flush()
+    entry = post_advance_application(db, adv, rows, on, apps[0].id, p.user_id)
+    for app_, (item, amount) in zip(apps, rows, strict=True):
+        app_.journal_entry_id = entry.id
+        item.open_amount -= amount
+        item.status = "paid" if item.open_amount == 0 else "partial"
+    adv.open_amount -= total
+    adv.status = "paid" if adv.open_amount == 0 else "partial"
+    log_action(db, "post", "advance_applications", apps[0].id,
+               f"Cruce de {adv.document_number} por {total} {adv.currency}")
+    return apps
+
+
+def void_advance_application(db: Session, p: Principal, application_id: int, reason: str) -> list[AdvanceApplication]:
+    first = get_owned(db, AdvanceApplication, application_id, p.company_id, lock=True)
+    if first.status == "voided":
+        raise Conflict("El cruce ya está anulado")
+    apps = list(db.scalars(select(AdvanceApplication).where(
+        AdvanceApplication.journal_entry_id == first.journal_entry_id).with_for_update()))
+    reverse_entry(db, company_id=p.company_id, entry_id=first.journal_entry_id, reversal_date=date.today(),
+                  reason=f"Anulación de cruce de anticipo: {reason}", user_id=p.user_id)
+    adv = db.get(OpenItem, first.advance_item_id, with_for_update=True)
+    for a in apps:
+        item = db.get(OpenItem, a.open_item_id, with_for_update=True)
+        item.open_amount += a.amount
+        item.status = "open" if item.open_amount == item.original_amount else "partial"
+        adv.open_amount += a.amount
+        a.status = "voided"
+    adv.status = "open" if adv.open_amount == adv.original_amount else "partial"
+    log_action(db, "void", "advance_applications", first.id, reason)
+    return apps
+
+
+def aging(db: Session, company_id: int, kind: str, as_of: date, party_id: int | None = None) -> dict:
+    stmt = select(OpenItem, Party.legal_name).join(Party, Party.id == OpenItem.party_id).where(
+        OpenItem.company_id == company_id, OpenItem.kind == kind, OpenItem.status.in_(("open", "partial")))
+    if party_id:
+        stmt = stmt.where(OpenItem.party_id == party_id)
+    rows = db.execute(stmt).all()
+    buckets = ("current", "1_30", "31_60", "61_90", "over_90", "advances")
     out = []
     totals = defaultdict(lambda: ZERO)
     for oi, name in rows:
-        days = (as_of - oi.due_date).days
-        b = "current" if days <= 0 else "1_30" if days <= 30 else "31_60" if days <= 60 else "61_90" if days <= 90 \
-            else "over_90"
-        functional = money(oi.open_amount * oi.exchange_rate)
+        advance = oi.document_type in ADVANCE_TYPES
+        days = 0 if advance else (as_of - oi.due_date).days
+        b = "advances" if advance else "current" if days <= 0 else "1_30" if days <= 30 else "31_60" if days <= 60 \
+            else "61_90" if days <= 90 else "over_90"
+        # Los anticipos son saldo a favor del tercero: restan de su cartera
+        functional = money(oi.open_amount * oi.exchange_rate) * (-1 if advance else 1)
         totals[b] += functional
         out.append({"open_item_id": oi.id, "party_id": oi.party_id, "party": name, "document": oi.document_number,
                     "document_type": oi.document_type, "document_id": oi.document_id, "due_date": oi.due_date,
-                    "days_overdue": max(days, 0), "bucket": b, "currency": oi.currency, "open_amount": oi.open_amount,
+                    "days_overdue": max(days, 0), "bucket": b, "currency": oi.currency, "is_advance": advance,
+                    "open_amount": -oi.open_amount if advance else oi.open_amount,
                     "open_amount_functional": functional})
+    labels = {"current": "Por vencer", "1_30": "1 a 30 días", "31_60": "31 a 60 días", "61_90": "61 a 90 días",
+              "over_90": "Más de 90 días", "advances": "Anticipos (saldo a favor)"}
     return {"as_of": as_of, "kind": kind, "items": sorted(out, key=lambda x: -x["days_overdue"]),
-            "totals": {b: totals[b] for b in buckets}, "total": sum(totals.values(), ZERO)}
+            "totals": {b: totals[b] for b in buckets}, "labels": labels, "total": sum(totals.values(), ZERO)}
 
 
 # ---------------------------------------------------------------- conciliación bancaria

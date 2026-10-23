@@ -125,25 +125,6 @@ export function EntriesPage() {
   );
 }
 
-export function ReceivablesPage() {
-  const { can } = useSession();
-  const [kind, setKind] = useState("receivable");
-  const aging = useFetch<Json>(`/accounting/aging?kind=${kind}`);
-  const [paying, setPaying] = useState<Json | null>(null);
-  return (
-    <Page title="Cartera y pagos" actions={<select aria-label="Tipo" value={kind} onChange={(e) => setKind(e.target.value)}>
-      <option value="receivable">Cuentas por cobrar</option><option value="payable">Cuentas por pagar</option></select>}>
-      {aging.data && <p className="summary">{Object.entries(aging.data.totals).map(([k, v]) => <span key={k}>{k.replace("_", "-")}: {fmtMoney(v)}</span>)}
-        <strong>Total {fmtMoney(aging.data.total)}</strong></p>}
-      <DataTable rows={aging.data?.items} columns={[{ key: "party", title: "Tercero" }, { key: "document", title: "Documento" },
-        { key: "due_date", title: "Vence" }, { key: "days_overdue", title: "Días vencido", align: "right" },
-        { key: "open_amount", title: "Saldo", align: "right", render: (r) => fmtMoney(r.open_amount, r.currency) },
-        { key: "a", title: "", render: (r) => can("accounting.payments.create") && <button onClick={() => setPaying(r)}>{kind === "receivable" ? "Recaudar" : "Pagar"}</button> }]} />
-      {paying && <PaymentModal kind={kind} item={paying} onClose={() => setPaying(null)} onDone={() => { setPaying(null); aging.reload(); }} />}
-    </Page>
-  );
-}
-
 export function PeriodsPage() {
   const { can } = useSession();
   const year = new Date().getFullYear();
@@ -214,65 +195,102 @@ export function AlertsPage() {
 
 interface WithholdingRow { tax_id: string; base: string; amount: string; certificate_number?: string }
 
-/** Recaudo o pago de una partida abierta. En recaudos admite las retenciones que practica el cliente:
- *  el valor aplicado a la partida = valor recibido en banco + retenciones. */
-export function PaymentModal({ kind, item, onClose, onDone }: {
-  kind: string; item: Json; onClose: () => void; onDone: () => void;
+/** Reparte lo aplicado entre las partidas, la de vencimiento más antiguo primero; lo que sobra queda como anticipo. */
+export function distribute(items: Json[], total: number): { allocations: { open_item_id: number; amount: string }[]; advance: number } {
+  let left = Math.round(total * 100);
+  const allocations = [...items].sort((a, b) => String(a.due_date ?? "").localeCompare(String(b.due_date ?? "")))
+    .flatMap((it) => {
+      const take = Math.min(left, Math.round(Number(it.open_amount) * 100));
+      left -= take;
+      return take > 0 ? [{ open_item_id: Number(it.open_item_id), amount: (take / 100).toFixed(2) }] : [];
+    });
+  return { allocations, advance: left / 100 };
+}
+
+/** Recaudo o pago de una o varias partidas del mismo tercero, o anticipo (sin partidas). Las retenciones se suman a lo
+ *  aplicado: valor aplicado = valor en banco + retenciones; si supera el saldo, el excedente queda como anticipo. */
+export function PaymentModal({ kind, item, items: many, party, onClose, onDone }: {
+  kind: string; item?: Json; items?: Json[]; party?: { id: number; name: string }; onClose: () => void; onDone: () => void;
 }) {
   const receipt = kind === "receivable";
-  const banks = useOptions("/bank-accounts", (x) => `${x.name} (${x.currency})`);
-  const taxes = useFetch<Json>("/taxes?active=true&limit=200");
+  const items: Json[] = many ?? (item ? [item] : []);
+  const advanceOnly = items.length === 0;
+  const first = items[0];
+  const partyId = first?.party_id ?? party?.id;
+  const bankData = useFetch<Json>("/bank-accounts");
+  const banks = (bankData.data?.items ?? []).map((x: Json) => ({ value: x.id as number, label: `${x.name} (${x.currency})` }));
+  const taxes = useFetch<Json>(advanceOnly ? null : "/taxes?active=true&limit=200");
   const withholdingTaxes: Json[] = (taxes.data?.items ?? []).filter((t: Json) => String(t.kind).startsWith("withholding")
     && [receipt ? "sales" : "purchases", "both"].includes(t.applies_to));
   const [rows, setRows] = useState<WithholdingRow[]>([]);
   const [hint, setHint] = useState<string | null>(null);
   // Al aplicar las sugerencias se rehace el formulario para proponer el valor neto de retenciones.
   const [formKey, setFormKey] = useState(0);
-  /** Retenciones del proveedor sobre lo que se paga (bases mínimas y retenciones ya hechas en la factura). */
+  const openTotal = items.reduce((t, it) => t + Number(it.open_amount), 0);
+  /** Retenciones del proveedor sobre lo que se paga (bases mínimas y retenciones ya hechas en cada factura). */
   const suggest = async () => {
-    const r = await get(`/accounting/payments/withholding-suggestions?open_item_id=${item.open_item_id}&applied=${item.open_amount}`);
-    setRows(r.suggestions.map((s: Json) => ({ tax_id: String(s.tax_id), base: String(s.base), amount: String(s.amount) })));
-    setHint(!r.agent ? "La empresa no está marcada como agente de retención."
-      : r.suggestions.length ? null : r.already_withheld.length ? "La factura ya liquidó sus retenciones al causarse."
+    const merged = new Map<string, WithholdingRow>();
+    let agent = true, already = 0;
+    for (const it of items) {
+      const r = await get(`/accounting/payments/withholding-suggestions?open_item_id=${it.open_item_id}&applied=${it.open_amount}`);
+      agent = agent && r.agent;
+      already += r.already_withheld.length;
+      for (const sg of r.suggestions) {
+        const prev = merged.get(String(sg.tax_id));
+        merged.set(String(sg.tax_id), { tax_id: String(sg.tax_id),
+          base: (Number(prev?.base ?? 0) + Number(sg.base)).toFixed(2), amount: (Number(prev?.amount ?? 0) + Number(sg.amount)).toFixed(2) });
+      }
+    }
+    setRows([...merged.values()]);
+    setHint(!agent ? "La empresa no está marcada como agente de retención."
+      : merged.size ? null : already ? "La factura ya liquidó sus retenciones al causarse."
       : "El proveedor no tiene retenciones configuradas o la base no alcanza el mínimo.");
     setFormKey((k) => k + 1);
   };
   // Clave fija mientras el formulario esté abierto: un doble envío no duplica el pago.
-  const [idempotencyKey] = useState(() => `ui-${item.open_item_id}-${crypto.randomUUID?.() ?? Date.now()}`);
-  const whTotal = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const [idempotencyKey] = useState(() => `ui-${first?.open_item_id ?? `ant-${partyId}`}-${crypto.randomUUID?.() ?? Date.now()}`);
+  const whTotal = rows.reduce((t, r) => t + (Number(r.amount) || 0), 0);
   const setRow = (i: number, patch: Partial<WithholdingRow>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const calc = (i: number) => {
     const r = rows[i];
     const tax = withholdingTaxes.find((t) => String(t.id) === r.tax_id);
     if (tax && r.base) setRow(i, { amount: (Math.round(Number(r.base) * Number(tax.rate)) / 100).toFixed(2) });
   };
-  const cashDefault = (Number(item.open_amount) - whTotal).toFixed(2);
+  const cashDefault = (openTotal - whTotal).toFixed(2);
+  const title = advanceOnly ? `Anticipo ${receipt ? "de" : "a"} ${party?.name ?? ""}`
+    : items.length === 1 ? `${receipt ? "Recaudo" : "Pago"} de ${first.document}`
+    : `${receipt ? "Recaudo" : "Pago"} de ${items.length} documentos de ${first.party ?? ""}`;
   return (
-    <Modal title={`${receipt ? "Recaudo" : "Pago"} de ${item.document}`} onClose={onClose}>
-      <p>Saldo de la partida: <strong>{fmtMoney(item.open_amount, item.currency)}</strong></p>
-      <>
-        <h3>{receipt ? "Retenciones practicadas por el cliente" : "Retenciones que practica la empresa"}</h3>
-        {!receipt && <p className="row"><ActionButton className="secondary" onClick={suggest}>Sugerir según el proveedor</ActionButton>
-          {hint && <span className="muted">{hint}</span>}</p>}
-        <table className="lines"><tbody>{rows.map((r, i) => <tr key={i}>
-          <td><select aria-label="Retención" value={r.tax_id} onChange={(e) => setRow(i, { tax_id: e.target.value })}>
-            <option value="">—</option>{withholdingTaxes.map((t) => <option key={t.id} value={t.id}>{t.code} · {t.name}</option>)}</select></td>
-          <td><input aria-label="Base" type="number" step="any" placeholder="Base" value={r.base} onChange={(e) => setRow(i, { base: e.target.value })} /></td>
-          <td><input aria-label="Valor retenido" type="number" step="any" placeholder="Valor" value={r.amount} onChange={(e) => setRow(i, { amount: e.target.value })} /></td>
-          {receipt && <td><input aria-label="Comprobante del cliente" placeholder="N.º comprobante" maxLength={30}
-            value={r.certificate_number ?? ""} onChange={(e) => setRow(i, { certificate_number: e.target.value })} /></td>}
-          <td className="row"><button type="button" className="secondary" onClick={() => calc(i)}>Calcular</button>
-            <button type="button" className="secondary" aria-label="Quitar retención" onClick={() => setRows(rows.filter((_, j) => j !== i))}>✕</button></td>
-        </tr>)}</tbody></table>
-        <button type="button" className="secondary" onClick={() => setRows([...rows, { tax_id: "", base: "", amount: "" }])}>+ Retención</button>
-        <p className="muted">Total retenido {fmtMoney(whTotal)}. {receipt
-          ? "El valor recibido en banco más las retenciones se aplica a la partida. Registre el número del comprobante que entrega el cliente: va al libro de ventas."
-          : "Se paga el saldo menos las retenciones; cada retención genera su comprobante para el proveedor."}</p>
-      </>
-      <Form key={formKey} initial={{ payment_date: today(), amount: cashDefault, method: "transfer" }} fields={[
+    <Modal title={title} onClose={onClose}>
+      {advanceOnly
+        ? <p className="muted">{receipt ? "Dinero recibido del cliente antes de facturar" : "Dinero entregado al proveedor antes de recibir su factura"}:
+            queda como saldo a favor del tercero y se cruza después contra sus facturas.</p>
+        : <>
+          <p>{items.length === 1 ? "Saldo de la partida" : `Saldo de ${items.length} documentos (${items.map((it) => it.document).join(", ")})`}:{" "}
+            <strong>{fmtMoney(openTotal, first.currency)}</strong></p>
+          <h3>{receipt ? "Retenciones practicadas por el cliente" : "Retenciones que practica la empresa"}</h3>
+          {!receipt && <p className="row"><ActionButton className="secondary" onClick={suggest}>Sugerir según el proveedor</ActionButton>
+            {hint && <span className="muted">{hint}</span>}</p>}
+          <table className="lines"><tbody>{rows.map((r, i) => <tr key={i}>
+            <td><select aria-label="Retención" value={r.tax_id} onChange={(e) => setRow(i, { tax_id: e.target.value })}>
+              <option value="">—</option>{withholdingTaxes.map((t) => <option key={t.id} value={t.id}>{t.code} · {t.name}</option>)}</select></td>
+            <td><input aria-label="Base" type="number" step="any" placeholder="Base" value={r.base} onChange={(e) => setRow(i, { base: e.target.value })} /></td>
+            <td><input aria-label="Valor retenido" type="number" step="any" placeholder="Valor" value={r.amount} onChange={(e) => setRow(i, { amount: e.target.value })} /></td>
+            {receipt && <td><input aria-label="Comprobante del cliente" placeholder="N.º comprobante" maxLength={30}
+              value={r.certificate_number ?? ""} onChange={(e) => setRow(i, { certificate_number: e.target.value })} /></td>}
+            <td className="row"><button type="button" className="secondary" onClick={() => calc(i)}>Calcular</button>
+              <button type="button" className="secondary" aria-label="Quitar retención" onClick={() => setRows(rows.filter((_, j) => j !== i))}>✕</button></td>
+          </tr>)}</tbody></table>
+          <button type="button" className="secondary" onClick={() => setRows([...rows, { tax_id: "", base: "", amount: "" }])}>+ Retención</button>
+          <p className="muted">Total retenido {fmtMoney(whTotal)}. {receipt
+            ? "El valor recibido en banco más las retenciones se aplica a la partida. Registre el número del comprobante que entrega el cliente: va al libro de ventas."
+            : "Se paga el saldo menos las retenciones; cada retención genera su comprobante para el proveedor."}
+            {items.length > 1 && " Se aplica primero a los documentos de vencimiento más antiguo."} Si el valor supera el saldo, el excedente queda como anticipo.</p>
+        </>}
+      <Form key={formKey} initial={{ payment_date: today(), amount: advanceOnly ? "" : cashDefault, method: "transfer" }} fields={[
         { name: "bank_account_id", label: "Cuenta bancaria", type: "select", required: true, options: banks },
         { name: "payment_date", label: "Fecha", type: "date", required: true },
-        { name: "amount", label: `${receipt ? "Valor recibido en banco" : "Valor pagado"} (sugerido: saldo − retenciones = ${cashDefault})`,
+        { name: "amount", label: advanceOnly ? `Valor del anticipo` : `${receipt ? "Valor recibido en banco" : "Valor pagado"} (sugerido: saldo − retenciones = ${cashDefault})`,
           type: "number", required: true },
         { name: "method", label: "Medio", type: "select", options: ["transfer", "cash", "check", "card", "mobile_payment"].map((v) => ({ value: v, label: v })) },
         { name: "reference", label: "Referencia" }]}
@@ -280,10 +298,11 @@ export function PaymentModal({ kind, item, onClose, onDone }: {
           const withholdings = rows.filter((r) => r.tax_id && Number(r.amount) > 0)
             .map((r) => ({ tax_id: Number(r.tax_id), base: r.base || "0", amount: r.amount,
               ...(receipt && r.certificate_number?.trim() ? { certificate_number: r.certificate_number.trim() } : {}) }));
-          const applied = (Number(d.amount) + withholdings.reduce((s, w) => s + Number(w.amount), 0)).toFixed(2);
-          await post("/accounting/payments", { ...d, kind: receipt ? "receipt" : "disbursement", party_id: item.party_id,
-            currency: item.currency, idempotency_key: idempotencyKey, withholdings,
-            allocations: [{ open_item_id: item.open_item_id, amount: applied }] });
+          const applied = Number(d.amount) + withholdings.reduce((t, w) => t + Number(w.amount), 0);
+          const { allocations } = distribute(items, applied);
+          const bank = (bankData.data?.items ?? []).find((b: Json) => String(b.id) === String(d.bank_account_id));
+          await post("/accounting/payments", { ...d, kind: receipt ? "receipt" : "disbursement", party_id: partyId,
+            currency: first?.currency ?? bank?.currency, idempotency_key: idempotencyKey, withholdings, allocations });
           onDone();
         }} />
     </Modal>
