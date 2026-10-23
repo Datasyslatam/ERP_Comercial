@@ -129,8 +129,9 @@ def post_sales_invoice(db: Session, inv, user_id: int | None) -> JournalEntry:
 
 
 def post_payment(db: Session, pay, allocations: list[tuple], user_id: int | None,
-                 igtf_tax: Tax | None = None) -> JournalEntry:
-    """allocations: [(open_item, amount)] en moneda del documento (= moneda del pago)."""
+                 igtf_tax: Tax | None = None, advance=ZERO) -> JournalEntry:
+    """allocations: [(open_item, amount)] en moneda del documento (= moneda del pago).
+    advance: parte del pago que no se aplica a facturas y queda como anticipo (saldo a favor del tercero)."""
     from app.modules.accounting.models import BankAccount, PaymentWithholding  # noqa: F401
 
     bank = db.get(BankAccount, pay.bank_account_id)
@@ -147,6 +148,13 @@ def post_payment(db: Session, pay, allocations: list[tuple], user_id: int | None
                               credit=value if receivable else ZERO, party_id=pay.party_id, currency=item.currency,
                               amount_currency=-amount if receivable else amount, exchange_rate=item.exchange_rate,
                               description=f"Aplicación a {item.document_number}"))
+    if advance:
+        acc = posting_account(db, company_id, "customer_advances" if receivable else "supplier_advances")
+        value = money(advance * rate)
+        lines.append(LineSpec(account_id=acc, debit=ZERO if receivable else value, credit=value if receivable else ZERO,
+                              party_id=pay.party_id, currency=pay.currency,
+                              amount_currency=-advance if receivable else advance, exchange_rate=rate,
+                              description=f"Anticipo {pay.number}"))
     cash = money(pay.amount * rate)
     igtf = money(pay.igtf_amount * rate)
     if receivable:
@@ -177,6 +185,37 @@ def post_payment(db: Session, pay, allocations: list[tuple], user_id: int | None
     return post_entry(db, company_id=company_id, entry_date=pay.payment_date, journal_type="treasury",
                       description=f"{kind} {pay.number}", lines=lines, idempotency_key=f"payment:{pay.id}",
                       source_type="payment", source_id=pay.id, user_id=user_id)
+
+
+def post_advance_application(db: Session, advance, rows: list[tuple], on, application_id: int,
+                             user_id: int | None) -> JournalEntry:
+    """Cruce de anticipo: el saldo a favor cancela facturas del tercero. rows: [(open_item, amount)]."""
+    receivable = advance.kind == "receivable"
+    company_id = advance.company_id
+    adv_acc = posting_account(db, company_id, "customer_advances" if receivable else "supplier_advances")
+    party_acc = posting_account(db, company_id, "accounts_receivable" if receivable else "accounts_payable")
+    lines: list[LineSpec] = []
+    for item, amount in rows:
+        adv_value, item_value = money(amount * advance.exchange_rate), money(amount * item.exchange_rate)
+        # Cliente: debita el anticipo recibido y acredita la cartera; proveedor: al revés.
+        lines.append(LineSpec(account_id=adv_acc, debit=adv_value if receivable else ZERO,
+                              credit=ZERO if receivable else adv_value, party_id=advance.party_id,
+                              currency=advance.currency, amount_currency=amount if receivable else -amount,
+                              exchange_rate=advance.exchange_rate, description=f"Cruce anticipo {advance.document_number}"))
+        lines.append(LineSpec(account_id=party_acc, debit=ZERO if receivable else item_value,
+                              credit=item_value if receivable else ZERO, party_id=advance.party_id,
+                              currency=item.currency, amount_currency=-amount if receivable else amount,
+                              exchange_rate=item.exchange_rate, description=f"Aplicación a {item.document_number}"))
+    diff = sum((ln.debit - ln.credit for ln in lines), ZERO)
+    if diff != 0:
+        lines.append(LineSpec(account_id=posting_account(db, company_id, "fx_difference"),
+                              debit=-diff if diff < 0 else ZERO, credit=diff if diff > 0 else ZERO,
+                              description="Diferencia en cambio realizada"))
+    docs = ", ".join(item.document_number for item, _ in rows)
+    return post_entry(db, company_id=company_id, entry_date=on, journal_type="treasury",
+                      description=f"Cruce de anticipo {advance.document_number} con {docs}"[:255], lines=lines,
+                      idempotency_key=f"advance_application:{application_id}", source_type="advance_application",
+                      source_id=application_id, user_id=user_id)
 
 
 def _balance_rounding(lines: list[LineSpec], account_id: int) -> None:

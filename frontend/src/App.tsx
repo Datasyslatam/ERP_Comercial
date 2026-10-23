@@ -1,9 +1,10 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
-import { AlertsPage, BankReconciliationPage, EntriesPage, GoalsBudgetsPage, PaymentsPage, PeriodsPage, ReceivablesPage,
+import { AlertsPage, BankReconciliationPage, EntriesPage, GoalsBudgetsPage, PaymentsPage, PeriodsPage,
   ReportsPage } from "./pages/Accounting";
 import { Dashboard } from "./pages/Dashboard";
 import { FiscalPage } from "./pages/Fiscal";
+import { ReceivablesPage } from "./pages/Receivables";
 import { CountsPage, ExpiringPage, InventoryDocumentsPage, KardexPage, ReplenishmentPage, StockPage } from "./pages/Inventory";
 import { Login } from "./pages/Login";
 import { AccountsPage, ItemsPage, NumberingPage, PartiesPage, TaxesPage, WarehousesPage } from "./pages/Masters";

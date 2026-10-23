@@ -155,8 +155,26 @@
 ## Contabilidad
 - **Comprobantes**: los documentos comerciales se contabilizan solos. Los comprobantes manuales se crean
   en borrador (deben cuadrar) y los contabiliza otro usuario. Los contabilizados no se editan: se reversan.
-- **Cartera por edades**: antigüedad de saldos por cobrar y pagar; *Recaudar/Pagar* aplica el pago a la
-  partida. En recaudos puede agregar las **retenciones que practica el cliente** (*+ Retención*, elegir la
+- **Cartera y pagos** (Contabilidad → Cartera por edades), para cuentas por cobrar o por pagar:
+  - **Filtros y vistas**: tercero, fecha de corte (define el rango de vencimiento), vista *Por documento* o
+    *Por tercero* (rangos por vencer, 1-30, 31-60, 61-90, más de 90 días, anticipos y saldo neto; en clientes,
+    el cupo de crédito resaltado si se supera) y exportación a **Excel** con ambas hojas.
+  - **Conciliación con la contabilidad**: arriba se compara el auxiliar (partidas abiertas) con el saldo de
+    las cuentas de control (clientes o proveedores y anticipos). Si no cuadra, *Ver terceros* muestra dónde
+    está la diferencia; suele deberse a comprobantes manuales en la cuenta de control o a diferencias de
+    cambio en documentos en divisas. Úsela para validar los saldos migrados.
+  - **Pagar varias facturas**: marque las facturas del mismo tercero y moneda y pulse *Recaudar/Pagar N
+    seleccionadas*; el valor se aplica primero a la de vencimiento más antiguo.
+  - **Anticipos y saldos a favor**: elija el tercero → *Registrar anticipo* (dinero recibido del cliente
+    antes de facturar o entregado al proveedor antes de su factura). También queda como anticipo lo que un
+    pago exceda del saldo de las facturas. Se contabiliza en *Anticipos recibidos de clientes* o *Anticipos
+    a proveedores*, aparece como saldo negativo y se aplica con *Cruzar con facturas* (propone las de
+    vencimiento más antiguo; cada cruce se puede anular con motivo). El pago que originó un anticipo solo
+    se anula si el anticipo no se ha cruzado.
+  - **Estado de cuenta**: clic en el nombre del tercero (o *Estado de cuenta* con el tercero elegido):
+    saldo inicial, un renglón por comprobante con cargos, abonos y saldo corrido, y los documentos
+    pendientes; se descarga en **PDF** o se **envía por correo** al tercero (cola con reintentos).
+- **Recaudar / Pagar** aplica el pago a la partida. En recaudos puede agregar las **retenciones que practica el cliente** (*+ Retención*, elegir la
   retención, digitar la base y *Calcular*): a la partida se aplica el valor recibido en banco más lo
   retenido. En Venezuela, cobros en divisas de contribuyentes especiales calculan el IGTF.
 - **Retenciones al pagar a proveedores**: en *Pagar*, *Sugerir según el proveedor* propone las retenciones
@@ -223,4 +241,8 @@ materiales → registrar horas → reportar unidades buenas, desperdicio y repro
 Importar datos → elija la entidad → *Descargar plantilla* → cargue CSV/XLSX (puede mapear columnas con
 JSON, p. ej. `{"NIT":"tax_id"}`) → revise las filas con error, corríjalas y guarde → *Importar filas
 válidas*. Para **saldos iniciales** cree primero un lote con fecha de corte y origen documentado; otro
-usuario lo aprueba y luego se contabiliza contra la cuenta puente de saldos iniciales.
+usuario lo aprueba y luego se contabiliza contra la cuenta puente de saldos iniciales. En la cartera
+inicial (por cobrar o por pagar) un **saldo negativo** es un anticipo o saldo a favor del tercero: se carga
+como anticipo, se contabiliza en la cuenta de anticipos y luego se cruza contra sus facturas. Después de
+contabilizar, revise en *Cartera* que la conciliación con la contabilidad cuadre y envíe a los terceros su
+estado de cuenta para confirmar los saldos.

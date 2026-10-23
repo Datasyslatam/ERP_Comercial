@@ -18,6 +18,7 @@ CO_ACCOUNTS = [
     ("135515", "Anticipo de impuestos - Retención en la fuente", "asset", True, {}),
     ("135517", "Anticipo de impuestos - Retención de IVA", "asset", True, {}),
     ("135518", "Anticipo de impuestos - Retención de ICA", "asset", True, {}),
+    ("133005", "Anticipos y avances a proveedores", "asset", True, {"requires_party": True}),
     ("14", "Inventarios", "asset", False, {}),
     ("140505", "Materias primas", "asset", True, {}),
     ("141005", "Productos en proceso", "asset", True, {}),
@@ -33,6 +34,7 @@ CO_ACCOUNTS = [
     ("240805", "IVA generado", "liability", True, {}),
     ("240810", "IVA descontable", "liability", True, {"normal": "debit"}),
     ("241005", "Impuesto nacional al consumo", "liability", True, {}),
+    ("280505", "Anticipos y avances recibidos de clientes", "liability", True, {"requires_party": True}),
     ("3", "PATRIMONIO", "equity", False, {}),
     ("310505", "Capital autorizado", "equity", True, {}),
     ("370505", "Utilidades acumuladas", "equity", True, {}),
@@ -58,7 +60,7 @@ CO_POSTING = {
     "inventory_adjustment_loss": "519530", "scrap_expense": "519530", "wip": "141005",
     "production_variance": "710595", "opening_balance": "399995", "fx_difference": "530525",
     "freight_expense": "513550", "purchase_price_variance": "613505", "applied_labor": "710595",
-    "retained_earnings": "370505",
+    "retained_earnings": "370505", "customer_advances": "280505", "supplier_advances": "133005",
 }
 
 # (código, nombre, tipo, tarifa %, base, aplica, cuenta ventas, cuenta compras, código electrónico)
@@ -90,6 +92,7 @@ VE_ACCOUNTS = [
     ("1.1.04.01", "Inventario de mercancía", "asset", True, {}),
     ("1.1.04.02", "Inventario de materia prima", "asset", True, {}),
     ("1.1.04.03", "Productos en proceso", "asset", True, {}),
+    ("1.1.05.01", "Anticipos a proveedores", "asset", True, {"requires_party": True}),
     ("2", "PASIVO", "liability", False, {}),
     ("2.1.01.01", "Proveedores", "liability", True, {"requires_party": True}),
     ("2.1.02.01", "Recepciones pendientes de factura", "liability", True, {}),
@@ -97,6 +100,7 @@ VE_ACCOUNTS = [
     ("2.1.03.02", "IVA retenido a proveedores por enterar", "liability", True, {}),
     ("2.1.03.03", "ISLR retenido por enterar", "liability", True, {}),
     ("2.1.03.04", "IGTF percibido por enterar", "liability", True, {}),
+    ("2.1.04.01", "Anticipos recibidos de clientes", "liability", True, {"requires_party": True}),
     ("3", "PATRIMONIO", "equity", False, {}),
     ("3.1.01", "Capital social", "equity", True, {}),
     ("3.2.01", "Resultados acumulados", "equity", True, {}),
@@ -122,7 +126,7 @@ VE_POSTING = {
     "inventory_adjustment_gain": "4.2.02", "inventory_adjustment_loss": "6.1.02", "scrap_expense": "6.1.02",
     "wip": "1.1.04.03", "production_variance": "5.2.01", "opening_balance": "3.9.01", "fx_difference": "6.2.01",
     "freight_expense": "6.1.01", "purchase_price_variance": "5.1.01", "applied_labor": "5.2.01",
-    "retained_earnings": "3.2.01",
+    "retained_earnings": "3.2.01", "customer_advances": "2.1.04.01", "supplier_advances": "1.1.05.01",
 }
 
 VE_TAXES = [

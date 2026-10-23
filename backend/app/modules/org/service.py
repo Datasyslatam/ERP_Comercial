@@ -58,6 +58,35 @@ def ensure_periods(db: Session, company_id: int, year: int) -> None:
     db.flush()
 
 
+def install_pack_accounts(db: Session, company: Company) -> dict[str, Account]:
+    """Idempotente: crea las cuentas y la parametrización contable del paquete del país que la empresa aún no
+    tenga (empresas nuevas y, al actualizar versiones, cuentas que el paquete incorpora después)."""
+    pack = PACKS[company.country_code]
+    by_code = {a.code: a for a in db.scalars(select(Account).where(Account.company_id == company.id))}
+    for acc_code, name, acc_type, postable, opts in pack["accounts"]:
+        if acc_code in by_code:
+            continue
+        parent = None
+        for other in sorted(by_code, key=len, reverse=True):
+            if acc_code.startswith(other) and acc_code != other and not by_code[other].is_postable:
+                parent = by_code[other]
+                break
+        normal = opts.get("normal") or ("debit" if acc_type in ("asset", "expense", "cost") else "credit")
+        acc = Account(company_id=company.id, code=acc_code, name=name, account_type=acc_type, normal_balance=normal,
+                      parent_id=parent.id if parent else None, is_postable=postable,
+                      requires_party=opts.get("requires_party", False), is_cash=opts.get("is_cash", False),
+                      cash_flow_activity="operating" if opts.get("is_cash") else None)
+        db.add(acc)
+        db.flush()
+        by_code[acc_code] = acc
+    keys = set(db.scalars(select(PostingAccount.key).where(PostingAccount.company_id == company.id)))
+    for key, acc_code in pack["posting"].items():
+        if key not in keys:
+            db.add(PostingAccount(company_id=company.id, key=key, account_id=by_code[acc_code].id))
+    db.flush()
+    return by_code
+
+
 def create_company(db: Session, *, code: str, legal_name: str, tax_id: str, country_code: str,
                    check_digit: str | None = None, sector: str = "commercial", site_code: str = "PRINCIPAL",
                    site_name: str = "Sede principal", is_withholding_agent: bool = False,
@@ -81,23 +110,7 @@ def create_company(db: Session, *, code: str, legal_name: str, tax_id: str, coun
         db.add(CompanyModule(company_id=company.id, module_code=mod,
                              enabled=mod not in SECTOR_DISABLED[sector]))
 
-    by_code: dict[str, Account] = {}
-    for acc_code, name, acc_type, postable, opts in pack["accounts"]:
-        parent = None
-        for other in sorted(by_code, key=len, reverse=True):
-            if acc_code.startswith(other) and acc_code != other:
-                parent = by_code[other]
-                break
-        normal = opts.get("normal") or ("debit" if acc_type in ("asset", "expense", "cost") else "credit")
-        acc = Account(company_id=company.id, code=acc_code, name=name, account_type=acc_type, normal_balance=normal,
-                      parent_id=parent.id if parent else None, is_postable=postable,
-                      requires_party=opts.get("requires_party", False), is_cash=opts.get("is_cash", False),
-                      cash_flow_activity="operating" if opts.get("is_cash") else None)
-        db.add(acc)
-        db.flush()
-        by_code[acc_code] = acc
-    for key, acc_code in pack["posting"].items():
-        db.add(PostingAccount(company_id=company.id, key=key, account_id=by_code[acc_code].id))
+    by_code = install_pack_accounts(db, company)
     for t_code, name, kind, rate, base, applies, sales_acc, purch_acc, ecode in pack["taxes"]:
         db.add(Tax(company_id=company.id, code=t_code, name=name, kind=kind, rate=Decimal(rate), base=base,
                    applies_to=applies, electronic_code=ecode,

@@ -62,7 +62,10 @@ Límites de aprobación por rol: `PUT /api/v1/approval-limits` (`purchase_requis
   y certificados) y `accounting.tax_reports.export` (Excel de los libros y TXT del SENIAT). Los tienen el
   contador, la gerencia y el auditor; cada descarga queda en la auditoría.
 - **Cuentas de contabilización**: `PUT /api/v1/posting-accounts` (inventario, CxC, CxP, ingresos, costo,
-  variaciones, cuenta puente de saldos iniciales, resultados acumulados…).
+  variaciones, cuenta puente de saldos iniciales, resultados acumulados, anticipos de clientes
+  `customer_advances` y a proveedores `supplier_advances`…). Las cuentas que una versión nueva incorpora al
+  paquete del país (p. ej. anticipos: Colombia 280505 y 133005; Venezuela 2.1.04.01 y 1.1.05.01) se crean
+  solas en las empresas existentes al arrancar (`python -m app.cli init`), sin tocar las que ya existen.
 - **Numeración autorizada**: Maestros → Numeración (resolución DIAN o asignación de imprenta digital).
 - **Tasas de cambio**: `POST /api/v1/exchange-rates` (TRM / BCV) diariamente para operaciones en divisas.
 

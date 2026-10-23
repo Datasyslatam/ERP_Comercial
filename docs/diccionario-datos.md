@@ -383,8 +383,8 @@ Tercero: cliente, proveedor y/o transportista.
 | `created_at` | DATETIME | no | now() |  |
 | `updated_at` | DATETIME | no | now() |  |
 
-- Única: (company_id, id_type, tax_id)
 - Única: (company_id, code)
+- Única: (company_id, id_type, tax_id)
 - Índice `ix_parties_company_id`: (parties.company_id)
 - Verificación `ck_parties_has_role`: `is_customer or is_supplier or is_carrier`
 
@@ -499,9 +499,9 @@ Impuesto o retención parametrizable. Las tarifas deben validarse con el asesor 
 
 - Única: (company_id, code)
 - Índice `ix_taxes_company_id`: (taxes.company_id)
+- Verificación `ck_taxes_applies_valid`: `applies_to in ('sales','purchases','both')`
 - Verificación `ck_taxes_rate_range`: `rate >= 0 and rate <= 100`
 - Verificación `ck_taxes_base_valid`: `base in ('subtotal','vat')`
-- Verificación `ck_taxes_applies_valid`: `applies_to in ('sales','purchases','both')`
 
 ### `payment_terms`
 
@@ -714,8 +714,8 @@ Impuesto o retención parametrizable. Las tarifas deben validarse con el asesor 
 
 - Índice `ix_goods_receipt_lines_po_line_id`: (goods_receipt_lines.po_line_id)
 - Índice `ix_goods_receipt_lines_receipt_id`: (goods_receipt_lines.receipt_id)
-- Verificación `ck_goods_receipt_lines_insp_valid`: `inspection_status in ('not_required','pending','accepted','rejected','partial')`
 - Verificación `ck_goods_receipt_lines_qty_positive`: `quantity > 0`
+- Verificación `ck_goods_receipt_lines_insp_valid`: `inspection_status in ('not_required','pending','accepted','rejected','partial')`
 
 ### `supplier_invoices`
 
@@ -933,9 +933,9 @@ Movimiento de inventario inmutable. Todo movimiento tiene fecha, responsable, mo
 
 - Índice `ix_reservations_source`: (stock_reservations.source_type, stock_reservations.source_line_id)
 - Índice `ix_stock_reservations_company_id`: (stock_reservations.company_id)
+- Verificación `ck_stock_reservations_consumed_within`: `quantity_consumed >= 0 and quantity_consumed <= quantity`
 - Verificación `ck_stock_reservations_qty_positive`: `quantity > 0`
 - Verificación `ck_stock_reservations_status_valid`: `status in ('active','consumed','released')`
-- Verificación `ck_stock_reservations_consumed_within`: `quantity_consumed >= 0 and quantity_consumed <= quantity`
 
 ### `inventory_documents`
 
@@ -1082,8 +1082,8 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 - Índice `ix_inspections_item_id`: (inspections.item_id)
 - Índice `ix_inspections_source`: (inspections.source_type, inspections.source_id)
 - Índice `ix_inspections_supplier_id`: (inspections.supplier_id)
-- Verificación `ck_inspections_status_valid`: `status in ('pending','accepted','rejected','partial','cancelled')`
 - Verificación `ck_inspections_qty_nonneg`: `qty_accepted >= 0 and qty_rejected >= 0`
+- Verificación `ck_inspections_status_valid`: `status in ('pending','accepted','rejected','partial','cancelled')`
 
 ### `inspection_results`
 
@@ -1133,8 +1133,8 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 - Índice `ix_nonconformities_company_id`: (nonconformities.company_id)
 - Índice `ix_nonconformities_item_id`: (nonconformities.item_id)
 - Índice `ix_nonconformities_supplier_id`: (nonconformities.supplier_id)
-- Verificación `ck_nonconformities_source_valid`: `source in ('inspection','customer','internal','supplier','delivery','production')`
 - Verificación `ck_nonconformities_severity_valid`: `severity in ('minor','major','critical')`
+- Verificación `ck_nonconformities_source_valid`: `source in ('inspection','customer','internal','supplier','delivery','production')`
 - Verificación `ck_nonconformities_status_valid`: `status in ('open','analysis','action','verification','closed')`
 
 ### `capa_actions`
@@ -1154,8 +1154,8 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 | `updated_at` | DATETIME | no | now() |  |
 
 - Índice `ix_capa_actions_nonconformity_id`: (capa_actions.nonconformity_id)
-- Verificación `ck_capa_actions_type_valid`: `action_type in ('containment','corrective','preventive')`
 - Verificación `ck_capa_actions_status_valid`: `status in ('open','done','verified','cancelled')`
+- Verificación `ck_capa_actions_type_valid`: `action_type in ('containment','corrective','preventive')`
 
 ## Ventas y logística
 
@@ -1212,9 +1212,9 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 - Única: (sales_order_id, line_no)
 - Índice `ix_sales_order_lines_item_id`: (sales_order_lines.item_id)
 - Índice `ix_sales_order_lines_sales_order_id`: (sales_order_lines.sales_order_id)
+- Verificación `ck_sales_order_lines_values_valid`: `quantity > 0 and unit_price >= 0`
 - Verificación `ck_sales_order_lines_discount_valid`: `discount_pct >= 0 and discount_pct <= 100`
 - Verificación `ck_sales_order_lines_dispatch_within_qty`: `qty_dispatched <= quantity`
-- Verificación `ck_sales_order_lines_values_valid`: `quantity > 0 and unit_price >= 0`
 
 ### `delivery_routes`
 
@@ -1290,11 +1290,11 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 
 - Índice `ix_dispatch_lines_dispatch_id`: (dispatch_lines.dispatch_id)
 - Índice `ix_dispatch_lines_so_line_id`: (dispatch_lines.so_line_id)
+- Verificación `ck_dispatch_lines_delivered_within_shipped`: `qty_delivered <= qty_shipped`
 - Verificación `ck_dispatch_lines_qty_positive`: `qty_requested > 0`
 - Verificación `ck_dispatch_lines_returned_within_shipped`: `qty_returned <= qty_shipped`
 - Verificación `ck_dispatch_lines_picked_within_requested`: `qty_picked <= qty_requested`
 - Verificación `ck_dispatch_lines_shipped_within_picked`: `qty_shipped <= qty_picked`
-- Verificación `ck_dispatch_lines_delivered_within_shipped`: `qty_delivered <= qty_shipped`
 
 ### `shipment_events`
 
@@ -1547,8 +1547,8 @@ Transferencias, ajustes, consumos internos y bajas. Los ajustes requieren aproba
 
 - Única: (company_id, year, month)
 - Índice `ix_fiscal_periods_company_id`: (fiscal_periods.company_id)
-- Verificación `ck_fiscal_periods_status_valid`: `status in ('open','closed')`
 - Verificación `ck_fiscal_periods_month_valid`: `month between 1 and 12`
+- Verificación `ck_fiscal_periods_status_valid`: `status in ('open','closed')`
 
 ### `journal_entries`
 
@@ -1576,8 +1576,8 @@ Comprobante contable. Una vez contabilizado es inmutable (trigger); se corrige p
 | `created_at` | DATETIME | no | now() |  |
 | `updated_at` | DATETIME | no | now() |  |
 
-- Única: (company_id, idempotency_key)
 - Única: (company_id, number)
+- Única: (company_id, idempotency_key)
 - Índice `ix_journal_date`: (journal_entries.company_id, journal_entries.entry_date)
 - Índice `ix_journal_entries_company_id`: (journal_entries.company_id)
 - Índice `ix_journal_source`: (journal_entries.source_type, journal_entries.source_id)
@@ -1633,8 +1633,8 @@ Partida abierta de cartera: CxC (receivable) o CxP (payable). Importes en moneda
 - Única: (company_id, kind, document_type, document_id)
 - Índice `ix_open_items_company_id`: (open_items.company_id)
 - Índice `ix_open_items_party`: (open_items.company_id, open_items.kind, open_items.party_id)
-- Verificación `ck_open_items_status_valid`: `status in ('open','partial','paid','cancelled')`
 - Verificación `ck_open_items_open_within`: `open_amount >= 0 and open_amount <= original_amount`
+- Verificación `ck_open_items_status_valid`: `status in ('open','partial','paid','cancelled')`
 - Verificación `ck_open_items_kind_valid`: `kind in ('receivable','payable')`
 
 ### `payments`
@@ -1667,9 +1667,9 @@ Recaudo de cliente (receipt) o pago a proveedor (disbursement).
 - Única: (company_id, number)
 - Única: (company_id, idempotency_key)
 - Índice `ix_payments_company_id`: (payments.company_id)
+- Verificación `ck_payments_amount_positive`: `amount > 0`
 - Verificación `ck_payments_kind_valid`: `kind in ('receipt','disbursement')`
 - Verificación `ck_payments_status_valid`: `status in ('posted','voided')`
-- Verificación `ck_payments_amount_positive`: `amount > 0`
 
 ### `payment_allocations`
 
@@ -1823,9 +1823,9 @@ Numeración autorizada (resolución DIAN o asignación de la imprenta digital SE
 
 - Única: (company_id, doc_type, prefix, range_from)
 - Índice `ix_numbering_ranges_company_id`: (numbering_ranges.company_id)
+- Verificación `ck_numbering_ranges_doctype_valid`: `doc_type in ('invoice','credit_note','debit_note')`
 - Verificación `ck_numbering_ranges_env_valid`: `environment in ('sandbox','production')`
 - Verificación `ck_numbering_ranges_range_valid`: `range_to >= range_from and next_number >= range_from`
-- Verificación `ck_numbering_ranges_doctype_valid`: `doc_type in ('invoice','credit_note','debit_note')`
 
 ### `sales_invoices`
 
@@ -1870,14 +1870,14 @@ Numeración autorizada (resolución DIAN o asignación de la imprenta digital SE
 | `created_at` | DATETIME | no | now() |  |
 | `updated_at` | DATETIME | no | now() |  |
 
-- Única: (company_id, doc_type, prefix, number)
 - Única: (company_id, idempotency_key)
+- Única: (company_id, doc_type, prefix, number)
 - Índice `ix_sales_invoices_company_id`: (sales_invoices.company_id)
 - Índice `ix_sales_invoices_customer_id`: (sales_invoices.customer_id)
-- Verificación `ck_sales_invoices_edoc_status_valid`: `edoc_status in ('draft','pending','sent','accepted','rejected','error')`
-- Verificación `ck_sales_invoices_status_valid`: `status in ('draft','issued','cancelled')`
 - Verificación `ck_sales_invoices_notes_reference`: `doc_type = 'invoice' or reference_invoice_id is not null`
 - Verificación `ck_sales_invoices_doctype_valid`: `doc_type in ('invoice','credit_note','debit_note')`
+- Verificación `ck_sales_invoices_status_valid`: `status in ('draft','issued','cancelled')`
+- Verificación `ck_sales_invoices_edoc_status_valid`: `edoc_status in ('draft','pending','sent','accepted','rejected','error')`
 
 ### `sales_invoice_lines`
 
@@ -2001,8 +2001,8 @@ Meta y umbrales de un KPI para una empresa (opcionalmente por sede).
 
 - Índice `ix_alerts_company_id`: (alerts.company_id)
 - Índice `ix_alerts_open`: (alerts.company_id, alerts.status)
-- Verificación `ck_alerts_severity_valid`: `severity in ('info','warning','critical')`
 - Verificación `ck_alerts_status_valid`: `status in ('open','acknowledged','closed')`
+- Verificación `ck_alerts_severity_valid`: `severity in ('info','warning','critical')`
 
 ### `import_jobs`
 
@@ -2068,6 +2068,30 @@ Saldos iniciales: documentan fecha de corte, origen y aprobación responsable an
 - Verificación `ck_opening_balance_batches_status_valid`: `status in ('draft','approved','posted','cancelled')`
 
 ## Otras
+
+### `advance_applications`
+
+Cruce de un anticipo (saldo a favor) contra una factura del mismo tercero. Importes en moneda del documento; las filas de un mismo cruce comparten el comprobante contable.
+
+| Columna | Tipo | Nulo | Por defecto | Referencia |
+|---|---|---|---|---|
+| `advance_item_id` | BIGINT | no |  | open_items.id |
+| `open_item_id` | BIGINT | no |  | open_items.id |
+| `amount` | NUMERIC(18, 2) | no |  |  |
+| `application_date` | DATE | no |  |  |
+| `status` | VARCHAR(8) | no | posted |  |
+| `journal_entry_id` | BIGINT | sí |  | journal_entries.id |
+| `created_by_id` | BIGINT | sí |  | users.id |
+| `id` (PK) | BIGINT | no |  |  |
+| `company_id` | BIGINT | no |  | companies.id |
+| `created_at` | DATETIME | no | now() |  |
+| `updated_at` | DATETIME | no | now() |  |
+
+- Índice `ix_advance_applications_advance_item_id`: (advance_applications.advance_item_id)
+- Índice `ix_advance_applications_company_id`: (advance_applications.company_id)
+- Índice `ix_advance_applications_open_item_id`: (advance_applications.open_item_id)
+- Verificación `ck_advance_applications_amount_positive`: `amount > 0`
+- Verificación `ck_advance_applications_status_valid`: `status in ('posted','voided')`
 
 ### `document_emails`
 
@@ -2182,8 +2206,8 @@ Descuento porcentual con vigencia para un artículo, una categoría o todo el ca
 
 - Única: (quote_id, line_no)
 - Índice `ix_sales_quote_lines_quote_id`: (sales_quote_lines.quote_id)
-- Verificación `ck_sales_quote_lines_values_valid`: `quantity > 0 and unit_price >= 0`
 - Verificación `ck_sales_quote_lines_discount_valid`: `discount_pct >= 0 and discount_pct <= 100`
+- Verificación `ck_sales_quote_lines_values_valid`: `quantity > 0 and unit_price >= 0`
 
 ### `sales_quotes`
 

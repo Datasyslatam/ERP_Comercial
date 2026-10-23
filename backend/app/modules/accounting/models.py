@@ -160,6 +160,29 @@ class OpenItem(IdMixin, CompanyMixin, TimestampMixin, Base):
     journal_entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entries.id"))
 
 
+# Partidas que representan un saldo a favor del tercero (anticipo recibido del cliente o entregado al proveedor)
+ADVANCE_TYPES = ("advance", "opening_advance")
+
+
+class AdvanceApplication(IdMixin, CompanyMixin, TimestampMixin, Base):
+    """Cruce de un anticipo (saldo a favor) contra una factura del mismo tercero. Importes en moneda del documento;
+    las filas de un mismo cruce comparten el comprobante contable."""
+
+    __tablename__ = "advance_applications"
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="amount_positive"),
+        CheckConstraint("status in ('posted','voided')", name="status_valid"),
+    )
+
+    advance_item_id: Mapped[int] = mapped_column(ForeignKey("open_items.id"), index=True)
+    open_item_id: Mapped[int] = mapped_column(ForeignKey("open_items.id"), index=True)
+    amount: Mapped[Decimal]
+    application_date: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(8), default="posted")
+    journal_entry_id: Mapped[int | None] = mapped_column(ForeignKey("journal_entries.id"))
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+
+
 class BankAccount(IdMixin, CompanyMixin, TimestampMixin, Base):
     __tablename__ = "bank_accounts"
     __table_args__ = (UniqueConstraint("company_id", "name"),)

@@ -350,9 +350,14 @@ def process_email(db: Session, ev: IntegrationEvent) -> None:
     if em is None or em.status == "sent":
         return
     em.attempts += 1
-    obj = db.get(DOCS[em.doc_type].model, em.doc_id)
-    data = document_data(db, em.doc_type, obj)
     company = db.get(Company, em.company_id)
+    if em.doc_type == "party_statement":  # estado de cuenta: el número guarda el tipo de cartera y el periodo
+        from app.modules.accounting import receivables
+
+        kind, start, end = receivables.parse_statement_number(em.doc_number)
+        data = receivables.statement_docdata(db, company, em.doc_id, kind, start, end)
+    else:
+        data = document_data(db, em.doc_type, db.get(DOCS[em.doc_type].model, em.doc_id))
     user_email = None
     if em.created_by_id:
         from app.modules.iam.models import User

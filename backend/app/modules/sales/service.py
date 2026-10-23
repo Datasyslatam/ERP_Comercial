@@ -2,7 +2,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.core.audit import log_action
@@ -11,7 +11,7 @@ from app.core.deps import Principal
 from app.core.errors import BusinessRuleViolation, Conflict
 from app.core.money import ZERO, money
 from app.core.numbering import next_number
-from app.modules.accounting.models import OpenItem
+from app.modules.accounting.models import ADVANCE_TYPES, OpenItem
 from app.modules.inventory import stock
 from app.modules.inventory.models import StockReservation
 from app.modules.masters.models import Item, Party, Tax
@@ -105,7 +105,10 @@ def update_order(db: Session, p: Principal, so_id: int, data: dict) -> SalesOrde
 
 
 def credit_exposure(db: Session, company_id: int, customer_id: int) -> Decimal:
-    open_ar = db.scalar(select(func.coalesce(func.sum(OpenItem.open_amount * OpenItem.exchange_rate), 0)).where(
+    # Los anticipos del cliente (saldo a favor) reducen la exposición
+    value = OpenItem.open_amount * OpenItem.exchange_rate
+    signed = case((OpenItem.document_type.in_(ADVANCE_TYPES), -value), else_=value)
+    open_ar = db.scalar(select(func.coalesce(func.sum(signed), 0)).where(
         OpenItem.company_id == company_id, OpenItem.kind == "receivable", OpenItem.party_id == customer_id,
         OpenItem.status.in_(("open", "partial"))))
     pending_orders = db.scalar(select(func.coalesce(func.sum(SalesOrder.total * SalesOrder.exchange_rate), 0)).where(

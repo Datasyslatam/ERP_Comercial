@@ -50,6 +50,7 @@ funcionalidad por módulo y documentos comerciales en PDF con envío por correo)
 
 | # | Pendiente |
 |---|---|
-| 26 | Migración de datos reales con las plantillas: terceros, artículos, plan de cuentas, saldos iniciales de inventario y cartera con fecha de corte, origen y aprobación documentados. |
+| 26 | Migración de datos reales con las plantillas: terceros, artículos, plan de cuentas, saldos iniciales de inventario y cartera (incluidos anticipos como saldos negativos) con fecha de corte, origen y aprobación documentados. Validar con la conciliación auxiliar vs mayor y los estados de cuenta enviados a los terceros. |
+| 31 | Cartera: castigo y deterioro (provisión) de cartera, intereses de mora, notas crédito y débito de proveedores, y cartera a una fecha pasada (hoy los saldos son los actuales; la fecha de corte solo define el rango de vencimiento). |
 | 27 | Carga de presupuestos, metas y umbrales de KPI por la gerencia (sin ellos los KPI muestran "Sin meta"). |
 | 28 | Tasas de cambio oficiales diarias (TRM / BCV): hoy se registran manualmente o por API. |
