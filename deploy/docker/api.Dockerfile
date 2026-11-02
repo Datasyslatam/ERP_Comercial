@@ -1,7 +1,15 @@
 # Imagen del backend (API y worker). Contexto de construcción: raíz del repositorio.
 FROM python:3.12-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PYTHONPATH=/srv
-RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client curl \
+# Cliente de PostgreSQL de la misma versión que el servidor de producción: pg_dump se niega a respaldar un servidor
+# más nuevo que él. El de la distribución no sirve porque su versión cambia con la imagen base.
+ARG PG_CLIENT_MAJOR=18
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+    && . /etc/os-release && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /etc/apt/keyrings/pgdg.asc \
+    && echo "deb [signed-by=/etc/apt/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+       > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update && apt-get install -y --no-install-recommends "postgresql-client-${PG_CLIENT_MAJOR}" \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 erp
 WORKDIR /srv

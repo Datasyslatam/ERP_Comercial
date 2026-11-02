@@ -131,7 +131,8 @@ Mismo procedimiento que B sobre una VM (AWS EC2, Azure VM, GCP, OCI, OpenStack, 
 7. Inicialización: en `api` → *Shell* ejecute los comandos `python -m app.cli init`, `create-company` y
    `create-admin` del paso B.5.
 8. Respaldos: habilite los backups del plugin PostgreSQL de Railway y, adicionalmente, programe un
-   *cron service* con la imagen de `api` y el comando `scripts/backup.sh` hacia almacenamiento externo.
+   *cron service* con la imagen de `api` y el comando `scripts/backup.sh` hacia almacenamiento externo. El cliente
+   de PostgreSQL de la imagen debe ser igual o más nuevo que el servidor (`PG_CLIENT_MAJOR`, hoy 18).
 
 ### D.1 Despliegue por imagen (recomendado)
 El CI construye las imágenes y, al fusionar en `main` con backend y frontend en verde, las publica en GitHub

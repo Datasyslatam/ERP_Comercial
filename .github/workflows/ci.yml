@@ -5,12 +5,12 @@ on:
 
 jobs:
   backend:
-    # Versión fija: el postgresql-client del sistema debe coincidir con el servidor (PostgreSQL 16). En Ubuntu 26 es
-    # v18 y sus respaldos no se restauran en un servidor v16 (SET transaction_timeout).
-    runs-on: ubuntu-24.04
+    # Las pruebas corren sobre la misma versión mayor de PostgreSQL que producción (18). El runner está fijado porque
+    # su postgresql-client debe coincidir con ese servidor: Ubuntu 26.04 trae el cliente 18.
+    runs-on: ubuntu-26.04
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: erp
           POSTGRES_PASSWORD: erp_ci
@@ -56,9 +56,65 @@ jobs:
     env:
       PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       REGISTRY: ghcr.io/datasyslatam
+    # Servidores para probar los respaldos con la imagen que se va a publicar: la versión de producción (Railway) y
+    # la de docker-compose.yml.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: erp
+          POSTGRES_PASSWORD: erp_ci
+          POSTGRES_DB: erp_origen
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U erp" --health-interval 5s --health-timeout 5s --health-retries 10
+      postgres16:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: erp
+          POSTGRES_PASSWORD: erp_ci
+          POSTGRES_DB: erp_origen
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U erp" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+      - name: Construir la imagen api para probarla
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/api.Dockerfile
+          load: true
+          tags: erp-api:ci
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+      # Si la imagen deja de poder respaldar o restaurar en estas versiones (p. ej. su cliente queda más antiguo que
+      # el servidor), se bloquea la publicación en lugar de descubrirlo el día que haga falta restaurar.
+      - name: Respaldo y restauración con la imagen
+        run: |
+          docker run --rm --network host --entrypoint sh erp-api:ci -euc '
+            pg_dump --version
+            for PUERTO in 5432 5433; do
+              BASE=erp:erp_ci@localhost:$PUERTO
+              SRC=postgresql://$BASE/erp_origen
+              export DATABASE_URL=postgresql+psycopg://$BASE/erp_origen
+              export RESTORE_TEST_URL=postgresql://$BASE/erp_restaurada
+              export BACKUP_DIR=/tmp/respaldos/$PUERTO
+              echo "--- Servidor $(psql -At -d "$SRC" -c "show server_version") ---"
+              alembic upgrade head
+              python -m app.cli init
+              psql -q -d "$SRC" -c "create database erp_restaurada"
+              scripts/backup.sh
+              scripts/verify_restore.sh
+              Q="select (select count(*) from information_schema.tables where table_schema = '"'"'public'"'"')
+                 ||'"'"'/'"'"'||(select count(*) from pg_trigger where tgname like '"'"'trg_%'"'"')
+                 ||'"'"'/'"'"'||(select count(*) from permissions)"
+              A=$(psql -At -d "$SRC" -c "$Q"); B=$(psql -At -d "$RESTORE_TEST_URL" -c "$Q")
+              echo "Origen $A · restaurada $B"
+              test -n "$A" && test "$A" = "$B"
+            done
+          '
       - if: env.PUBLISH == 'true'
         uses: docker/login-action@v3
         with:
