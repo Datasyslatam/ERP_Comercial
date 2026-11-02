@@ -77,7 +77,13 @@ Límites de aprobación por rol: `PUT /api/v1/approval-limits` (`purchase_requis
 - Restauración en base nueva: `TARGET_DATABASE_URL=… database/scripts/restore.sh /backups/erp_X.dump`.
 - **Prueba de restauración mensual** obligatoria: `database/scripts/verify_restore.sh` (restaura el último
   respaldo en una base temporal, compara conteos y verifica que la contabilidad cuadre). La prueba
-  automatizada `tests/test_backup_restore.py` ejercita el mismo ciclo.
+  automatizada `tests/test_backup_restore.py` ejercita el mismo ciclo y el CI lo repite con la imagen `api` antes de
+  publicarla.
+- **Versiones de PostgreSQL**: `pg_dump` debe ser igual o más nuevo que el servidor del que respalda (si es más
+  antiguo, se niega y el respaldo falla). `restore.sh` admite un cliente más nuevo que el servidor destino, pero
+  rechaza restaurar en un servidor más antiguo que el de origen del respaldo. Al actualizar el servidor de
+  producción, actualice también la versión del servicio `postgres` del job `images` del CI y compruebe el cliente de
+  la imagen `api`.
 
 ## Monitoreo y alertas
 - `GET /health/live` (proceso) y `GET /health/ready` (BD + versión de esquema) para el balanceador.

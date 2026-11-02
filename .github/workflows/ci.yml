@@ -56,9 +56,51 @@ jobs:
     env:
       PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       REGISTRY: ghcr.io/datasyslatam
+    # Servidor para probar los respaldos con la imagen que se va a publicar: misma versión que el de producción.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: erp
+          POSTGRES_PASSWORD: erp_ci
+          POSTGRES_DB: erp_origen
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U erp" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+      - name: Construir la imagen api para probarla
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/api.Dockerfile
+          load: true
+          tags: erp-api:ci
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+      # El cliente de PostgreSQL de la imagen puede ser más nuevo que el servidor: si un respaldo deja de poder
+      # restaurarse, se bloquea la publicación en lugar de descubrirlo el día que haga falta restaurar.
+      - name: Respaldo y restauración con la imagen
+        run: |
+          docker run --rm --network host --entrypoint sh \
+            -e DATABASE_URL=postgresql+psycopg://erp:erp_ci@localhost:5432/erp_origen \
+            -e RESTORE_TEST_URL=postgresql://erp:erp_ci@localhost:5432/erp_restaurada \
+            -e BACKUP_DIR=/tmp/respaldos \
+            erp-api:ci -euc '
+              alembic upgrade head
+              python -m app.cli init
+              SRC=postgresql://erp:erp_ci@localhost:5432/erp_origen
+              psql -q -d "$SRC" -c "create database erp_restaurada"
+              scripts/backup.sh
+              scripts/verify_restore.sh
+              Q="select (select count(*) from information_schema.tables where table_schema = '"'"'public'"'"')
+                 ||'"'"'/'"'"'||(select count(*) from pg_trigger where tgname like '"'"'trg_%'"'"')
+                 ||'"'"'/'"'"'||(select count(*) from permissions)"
+              A=$(psql -At -d "$SRC" -c "$Q"); B=$(psql -At -d "$RESTORE_TEST_URL" -c "$Q")
+              echo "Origen $A · restaurada $B"
+              test -n "$A" && test "$A" = "$B"
+            '
       - if: env.PUBLISH == 'true'
         uses: docker/login-action@v3
         with:
