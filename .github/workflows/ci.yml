@@ -179,4 +179,4 @@ jobs:
             echo "Desplegando $image"
           done
       - if: env.RAILWAY_TOKEN == ''
-        run: echo "::notice::Imágenes publicadas en GHCR; sin RAILWAY_TOKEN, redespliegue api y web desde el panel de Railway."
+        run: echo "::notice::Imágenes publicadas en GHCR; sin RAILWAY_TOKEN no se usan, Railway despliega desde el repositorio."

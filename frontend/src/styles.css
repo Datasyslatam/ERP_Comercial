@@ -272,8 +272,11 @@ tr.clickable { cursor: pointer; } tr.clickable:hover { background: var(--accent-
 /* Ingreso: panel de marca azul noche con red de nodos + formulario. */
 .login { min-height: var(--vh-full); display: grid; grid-template-columns: minmax(380px, 46%) 1fr; background: var(--bg); }
 .login-brand {
-  position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2.25rem;
-  padding: 2.5rem 3rem; color: #FFFFFF; overflow: hidden; isolation: isolate;
+  /* Tres zonas: logo arriba, información centrada en el espacio restante y copyright abajo. */
+  position: relative; display: grid; grid-template-rows: auto 1fr auto; justify-items: center;
+  row-gap: clamp(1rem, calc(var(--vh-full) * .03), 2rem);
+  padding: clamp(1.5rem, calc(var(--vh-full) * .09), 12rem) 3rem clamp(1rem, calc(var(--vh-full) * .05), 7rem);
+  color: #FFFFFF; overflow: hidden; isolation: isolate;
   background:
     radial-gradient(60% 45% at 100% 0%, rgba(59, 47, 201, .45), transparent 70%),
     radial-gradient(55% 40% at 0% 100%, rgba(233, 30, 156, .22), transparent 70%),
@@ -282,7 +285,7 @@ tr.clickable { cursor: pointer; } tr.clickable:hover { background: var(--accent-
 }
 /* Isotipo de fondo, grande y tenue, y franja con el espectro del logo */
 .login-brand::before {
-  content: ""; position: absolute; z-index: -1; right: -12%; bottom: -10%; width: 70%; aspect-ratio: 1;
+  content: ""; position: absolute; z-index: -1; right: -14%; bottom: -16%; width: min(52%, calc(var(--vh-full) * .5)); aspect-ratio: 1;
   background: url("./assets/novix-mark.png") center / contain no-repeat; opacity: .07; transform: rotate(-8deg);
 }
 .login-brand::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--novix-spectrum); }
@@ -291,10 +294,11 @@ tr.clickable { cursor: pointer; } tr.clickable:hover { background: var(--accent-
   background: linear-gradient(90deg, var(--novix-sky), var(--novix-orange) 55%, var(--novix-magenta));
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.login-pitch { max-width: 460px; }
+.login-pitch { align-self: center; width: 100%; max-width: 460px; text-align: center; }
 .login-pitch h2 { font-size: 2rem; line-height: 1.15; font-weight: 700; letter-spacing: -.02em; margin: 0 0 .9rem; }
-.login-pitch p { font-size: 1rem; line-height: 1.55; opacity: .82; margin: 0 0 1.75rem; }
-.login-features { list-style: none; margin: 0; padding: 0; display: grid; gap: .8rem; }
+.login-pitch p { font-size: 1rem; line-height: 1.55; opacity: .82; margin: 0 0 clamp(.9rem, calc(var(--vh-full) * .03), 1.75rem); }
+/* La columna se centra como bloque; dentro, iconos y textos siguen alineados a la izquierda. */
+.login-features { list-style: none; width: fit-content; max-width: 100%; margin: 0 auto; padding: 0; display: grid; gap: clamp(.45rem, calc(var(--vh-full) * .015), .8rem); text-align: left; }
 .login-features li { display: flex; align-items: center; gap: .75rem; font-size: .95rem; }
 .login-features .nav-icon {
   width: 34px; height: 34px; padding: 7px; border-radius: 9px; flex: none;
@@ -303,7 +307,7 @@ tr.clickable { cursor: pointer; } tr.clickable:hover { background: var(--accent-
 .login-features li:nth-child(even) .nav-icon { background: rgba(233, 30, 156, .1); border-color: rgba(233, 30, 156, .32); }
 .login-features .nav-icon .ico-main { stroke: var(--novix-sky); } .login-features .nav-icon .ico-acc { stroke: var(--novix-orange); }
 .login-features li:nth-child(even) .nav-icon .ico-main { stroke: #F472B6; }
-.login-brand footer { font-size: .78rem; opacity: .6; }
+.login-brand footer { font-size: .78rem; opacity: .6; text-align: center; }
 .login-main { display: grid; place-items: center; padding: 2rem 1.25rem; }
 .login-card {
   position: relative; overflow: hidden;
