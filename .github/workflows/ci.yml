@@ -46,7 +46,8 @@ jobs:
       - run: npm run build
 
   # Construye las imágenes en todas las ramas; solo en main (tras pasar backend y frontend) las publica en
-  # GHCR. Railway despliega esas imágenes en lugar de compilar el repositorio (docs/instalacion.md, sección D).
+  # GHCR. Railway solo las usa si la fuente del servicio es la imagen; hoy compila desde el repositorio y espera
+  # este CI con Wait for CI (docs/instalacion.md, sección D).
   images:
     runs-on: ubuntu-latest
     needs: [backend, frontend]
@@ -142,8 +143,9 @@ jobs:
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=max
 
-  # Despliegue en Railway de las imágenes recién publicadas (etiqueta = commit, para saber qué corre y poder
-  # volver atrás). Se omite si el repositorio no tiene el secreto RAILWAY_TOKEN: entonces se redespliega a mano.
+  # Despliegue por imagen en Railway (etiqueta = commit, para saber qué corre y poder volver atrás). Se omite si el
+  # repositorio no tiene el secreto RAILWAY_TOKEN, como ahora. Crear ese secreto cambia la fuente de los servicios a
+  # la imagen: hacerlo solo al adoptar la modalidad de docs/instalacion.md, sección D.1.
   deploy:
     runs-on: ubuntu-latest
     needs: images
