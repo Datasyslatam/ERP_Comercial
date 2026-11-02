@@ -109,8 +109,9 @@ Mismo procedimiento que B sobre una VM (AWS EC2, Azure VM, GCP, OCI, OpenStack, 
    En ambos, **Root Directory vacío o `/`** (raíz del repositorio): los Dockerfile copian `backend/`,
    `frontend/` y `deploy/` desde la raíz. Con Root Directory `/frontend` el build falla con
    `"/frontend/package.json": not found`. Con *Dockerfile Path* definido Railway construye con Docker,
-   no con Railpack, y la fuente debe ser el repositorio. Para no depender de los builds de Railway, use
-   las imágenes que publica el CI (sección D.1).
+   no con Railpack, y la fuente debe ser el repositorio. **Active *Wait for CI*** en *Settings* de cada servicio:
+   sin esa opción, Railway despliega en cuanto cambia `main`, aunque el CI falle o no haya terminado. Producción
+   usa hoy esta modalidad. Para no depender de los builds de Railway, vea la alternativa de la sección D.1.
 3. Variables de `api`:
    - `DATABASE_URL=${{Postgres.DATABASE_URL}}` (se normaliza al driver psycopg automáticamente)
    - `ENVIRONMENT=production`, `JWT_SECRET=<aleatorio 48+>`, `CORS_ORIGINS=https://<dominio-web>`
@@ -134,11 +135,13 @@ Mismo procedimiento que B sobre una VM (AWS EC2, Azure VM, GCP, OCI, OpenStack, 
    *cron service* con la imagen de `api` y el comando `scripts/backup.sh` hacia almacenamiento externo. El cliente
    de PostgreSQL de la imagen debe ser igual o más nuevo que el servidor (`PG_CLIENT_MAJOR`, hoy 18).
 
-### D.1 Despliegue por imagen (recomendado)
+### D.1 Alternativa: despliegue por imagen (no es la configuración actual de producción)
 El CI construye las imágenes y, al fusionar en `main` con backend y frontend en verde, las publica en GitHub
 Container Registry: `ghcr.io/datasyslatam/erp-api` y `ghcr.io/datasyslatam/erp-web`, con las etiquetas `latest`
-y el SHA del commit. Railway solo descarga y ejecuta la imagen: no compila, así que una falla de sus
-servidores de build no detiene los despliegues y en producción corre exactamente lo que probó el CI.
+y el SHA del commit. Esa publicación ocurre siempre, pero **Railway solo las usa si la fuente del servicio es la
+imagen**. En ese caso no compila, una falla de sus servidores de build no detiene los despliegues y en producción
+corre exactamente lo que probó el CI. El job `deploy` del CI nunca se ha ejecutado contra Railway: pruébelo en un
+momento controlado antes de depender de él.
 
 1. **Paquetes públicos**: tras el primer push a `main`, en GitHub → organización → *Packages* → `erp-api` y
    `erp-web` → *Package settings* → *Change visibility* → **Public** (el código ya es público). Si se dejan
