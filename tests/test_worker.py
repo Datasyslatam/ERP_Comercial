@@ -3,12 +3,32 @@ import ast
 import logging
 from pathlib import Path
 
-from app.core.db import SessionLocal
+from sqlalchemy import event
+
+from app.core.config import get_settings
+from app.core.db import SessionLocal, engine
 from app.worker import evaluate_all_alerts
 
 BACKEND = Path(__file__).resolve().parents[1] / "backend" / "app"
 # Atributos propios de logging.LogRecord: usarlos como clave en `extra` lanza KeyError al registrar.
 RESERVED = set(vars(logging.LogRecord("x", logging.INFO, "x", 0, "x", None, None))) | {"message", "asctime"}
+
+
+def test_db_connection_attempt_is_time_limited():
+    # Sin límite, una base que no responde retiene al worker o a una petición del api hasta 130 s (default de psycopg).
+    seen = {}
+
+    def spy(dialect, record, cargs, cparams):
+        seen.update(cparams)
+
+    event.listen(engine, "do_connect", spy)
+    try:
+        engine.dispose()
+        with engine.connect():
+            pass
+    finally:
+        event.remove(engine, "do_connect", spy)
+    assert seen["connect_timeout"] == get_settings().db_connect_timeout == 10
 
 
 def test_alert_evaluation_logs_without_error(env, caplog, monkeypatch):

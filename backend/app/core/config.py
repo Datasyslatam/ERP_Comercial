@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://erp:erp@localhost:5432/erp"
     db_pool_size: int = 10
     db_max_overflow: int = 20
+    db_connect_timeout: int = 10  # segundos; sin este límite psycopg espera hasta 130 s por una conexión
 
     # Autenticación
     auth_mode: Literal["local", "oidc"] = "local"
