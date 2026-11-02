@@ -5,7 +5,9 @@ on:
 
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    # Versión fija: el postgresql-client del sistema debe coincidir con el servidor (PostgreSQL 16). En Ubuntu 26 es
+    # v18 y sus respaldos no se restauran en un servidor v16 (SET transaction_timeout).
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16-alpine

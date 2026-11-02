@@ -272,7 +272,7 @@ tr.clickable { cursor: pointer; } tr.clickable:hover { background: var(--accent-
 /* Ingreso: panel de marca azul noche con red de nodos + formulario. */
 .login { min-height: var(--vh-full); display: grid; grid-template-columns: minmax(380px, 46%) 1fr; background: var(--bg); }
 .login-brand {
-  position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 2rem;
+  position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2.25rem;
   padding: 2.5rem 3rem; color: #FFFFFF; overflow: hidden; isolation: isolate;
   background:
     radial-gradient(60% 45% at 100% 0%, rgba(59, 47, 201, .45), transparent 70%),
