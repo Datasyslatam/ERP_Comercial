@@ -121,4 +121,4 @@ Node 24. Comando: `pytest -v --cov=app --cov=integrations` y `npm test` / `npm r
 | `test_venezuela.py` | empresa VES, venta en USD con tasa, imprenta digital sandbox, IGTF 3 %, retención de IVA 75 %, balance cuadrado |
 | `frontend/src/screens.test.tsx` | recaudo con retenciones (cálculo, valor aplicado, idempotencia), pago sin retenciones, nota crédito y validación de nota débito |
 | `test_backup_restore.py` | `pg_dump` → `pg_restore` en otra base → conteos, balance y triggers idénticos |
-| CI, job `images` | con la imagen `api` a publicar y un servidor PostgreSQL 16: migraciones, `backup.sh`, `verify_restore.sh` y comparación de tablas, triggers y permisos; si falla, no se publica |
+| CI, job `images` | con la imagen `api` a publicar y servidores PostgreSQL 18 (producción) y 16 (`docker-compose.yml`): migraciones, `backup.sh`, `verify_restore.sh` y comparación de tablas, triggers y permisos; si falla, no se publica |

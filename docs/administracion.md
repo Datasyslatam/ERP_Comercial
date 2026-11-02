@@ -82,8 +82,11 @@ Límites de aprobación por rol: `PUT /api/v1/approval-limits` (`purchase_requis
 - **Versiones de PostgreSQL**: `pg_dump` debe ser igual o más nuevo que el servidor del que respalda (si es más
   antiguo, se niega y el respaldo falla). `restore.sh` admite un cliente más nuevo que el servidor destino, pero
   rechaza restaurar en un servidor más antiguo que el de origen del respaldo. Al actualizar el servidor de
-  producción, actualice también la versión del servicio `postgres` del job `images` del CI y compruebe el cliente de
-  la imagen `api`.
+  producción, actualice también el cliente de la imagen `api` (`PG_CLIENT_MAJOR` en `deploy/docker/api.Dockerfile`)
+  y los servicios `postgres` del CI.
+- **Versiones actuales**: producción en Railway usa **PostgreSQL 18** (18.6 al 2026-11-02) y el CI prueba contra esa
+  versión mayor. `docker-compose.yml` y el entorno local siguen en PostgreSQL 16, y el CI también comprueba los
+  respaldos en esa versión. Un respaldo de producción no se restaura en un servidor v16: `restore.sh` lo rechaza.
 
 ## Monitoreo y alertas
 - `GET /health/live` (proceso) y `GET /health/ready` (BD + versión de esquema) para el balanceador.

@@ -44,7 +44,7 @@ funcionalidad por módulo y documentos comerciales en PDF con envío por correo)
 | 22 | Tarea programada de depuración de `login_attempts` y `refresh_tokens` antiguos; política de retención automatizada. |
 | 23 | Pruebas de carga, pruebas E2E de interfaz automatizadas y pentest externo. |
 | 24 | Respaldo PITR (WAL) si se requiere RPO menor a 24 h. |
-| 32 | Producción (Railway): confirmar que haya respaldos programados y almacenados fuera de Railway, y hacer una restauración de prueba. El servicio `backup` de `docker-compose.yml` no existe en Railway. Confirmar también la versión de PostgreSQL de producción y alinearla con el servicio `postgres` del job `images` del CI. |
+| 32 | Producción (Railway): confirmar que haya respaldos programados y almacenados fuera de Railway, y hacer una restauración de prueba. El servicio `backup` de `docker-compose.yml` no existe en Railway. Producción usa PostgreSQL 18; `docker-compose.yml` y el entorno local siguen en 16: decidir si se alinean (cambiar de versión mayor con datos exige respaldar y restaurar). |
 | 25 | Modo offline por sede: descartado por decisión del usuario; diseño de referencia en `arquitectura.md` §9. |
 
 ## Datos
