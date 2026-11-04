@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Attachments } from "../components/Attachments";
 import { ActionButton, Alert, Badge, DataTable, Form, Modal, Page } from "../components/ui";
 import { api, download, Json, post } from "../lib/api";
 import { fmtDate, fmtMoney, fmtNumber } from "../lib/format";
@@ -68,7 +69,12 @@ export function WorkOrdersPage() {
               { name: "rework_qty", label: "Reproceso", type: "number" }, { name: "lot_number", label: "Lote" }, { name: "expiry_date", label: "Vencimiento", type: "date" },
               { name: "complete", label: "Terminar la orden", type: "checkbox" }]} submitLabel="Reportar" onSubmit={(d) => act("output", d)} />
           </>}
+          <h3>Registrar incidencia</h3>
+          <Form fields={[{ name: "incident_type", label: "Tipo", required: true, placeholder: "Parada, calidad, material…" },
+            { name: "description", label: "Descripción", type: "textarea", required: true }, { name: "downtime_minutes", label: "Minutos de parada", type: "number" }]}
+            submitLabel="Registrar incidencia" onSubmit={(d) => act("incidents", d)} />
         </>}
+        <Attachments entity="work_orders" id={current} canAdd={can("operations.work_order.create")} />
       </Modal>}
     </Page>
   );

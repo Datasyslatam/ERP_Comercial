@@ -42,7 +42,13 @@ def create_manual_entry(db: Session, p: Principal, data: dict) -> JournalEntry:
                          description=data["description"], status="draft",
                          idempotency_key=f"manual:{uuid.uuid4().hex}", created_by_id=p.user_id)
     for i, ln in enumerate(data["lines"], start=1):
-        get_owned(db, Account, ln["account_id"], p.company_id)
+        acc = get_owned(db, Account, ln["account_id"], p.company_id)
+        if not acc.is_postable or not acc.is_active:
+            raise BusinessRuleViolation(f"La cuenta {acc.code} no es de movimiento o está inactiva")
+        if acc.requires_party and not ln.get("party_id"):
+            raise BusinessRuleViolation(f"La cuenta {acc.code} exige tercero")
+        if acc.requires_cost_center and not ln.get("cost_center_id"):
+            raise BusinessRuleViolation(f"La cuenta {acc.code} exige centro de costo")
         entry.lines.append(JournalLine(company_id=p.company_id, line_no=i, account_id=ln["account_id"],
                                        debit=money(ln.get("debit") or 0), credit=money(ln.get("credit") or 0),
                                        description=ln.get("description"), party_id=ln.get("party_id"),
@@ -71,6 +77,7 @@ def delete_draft(db: Session, p: Principal, entry_id: int) -> None:
     draft = get_owned(db, JournalEntry, entry_id, p.company_id, lock=True)
     if draft.status != "draft":
         raise BusinessRuleViolation("Solo se eliminan borradores; los contabilizados se reversan")
+    log_action(db, "void", "journal_entries", draft.id, f"Borrador descartado: {draft.description}"[:255])
     db.delete(draft)
 
 

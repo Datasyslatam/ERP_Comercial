@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ResourcePage } from "../components/ResourcePage";
+import { Attachments } from "../components/Attachments";
 import { TracePanel } from "../components/TracePanel";
 import { ActionButton, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
 import { Json, patch, post, qs } from "../lib/api";
@@ -42,6 +43,9 @@ export function DispatchDetailPage() {
       {d.status === "shipped" && canPost && <button onClick={() => setStep("deliver")}>Registrar entrega</button>}
       {d.status !== "cancelled" && can("logistics.dispatch.create") &&
         <button className="secondary" onClick={() => setStep("incident")}>Reportar incidencia</button>}
+      {["draft", "picking", "picked", "packed"].includes(d.status) && can("logistics.dispatch.void") &&
+        <ActionButton className="danger" onClick={async () => { const reason = window.prompt("Motivo de la anulación del despacho");
+          if (reason) await call("cancel", { reason }); }}>Anular despacho</ActionButton>}
       {shipped && returnable.length > 0 && can("logistics.return.post") &&
         <button className="secondary" onClick={() => setStep("return")}>Registrar devolución</button>}
       {shipped && can("einvoicing.invoice.create") &&
@@ -55,6 +59,7 @@ export function DispatchDetailPage() {
           key: k, title: { qty_requested: "Solicitado", qty_picked: "Preparado", qty_shipped: "Enviado", qty_delivered: "Entregado",
             qty_returned: "Devuelto", qty_invoiced: "Facturado" }[k] as string, align: "right" as const, render: (r: Json) => fmtNumber(r[k]) }))]} />
 
+      <Attachments entity="dispatch_orders" id={d.id} canAdd={can("logistics.dispatch.create")} />
       <h3>Seguimiento</h3>
       <DataTable rows={d.events} columns={[{ key: "event_time", title: "Fecha", render: (r) => fmtDate(r.event_time) },
         { key: "status", title: "Evento" }, { key: "location_text", title: "Lugar" }, { key: "notes", title: "Notas" }]} />
@@ -135,7 +140,7 @@ export function ReturnModal({ dispatch, lines, locations, itemName, onClose, onD
   return (
     <Modal title={`Devolución del despacho ${dispatch.number}`} onClose={onClose}>
       <Form initial={{ return_date: today() }} fields={[
-        { name: "location_id", label: "Ubicación de reingreso", type: "select", required: true, options: locations },
+        { name: "location_id", label: "Ubicación de reingreso (revendible)", type: "select", required: true, options: locations },
         { name: "return_date", label: "Fecha", type: "date", required: true },
         { name: "reason", label: "Motivo", required: true },
         ...lines.flatMap((l) => [
@@ -152,7 +157,7 @@ export function ReturnModal({ dispatch, lines, locations, itemName, onClose, onD
             location_id: v.location_id, return_date: v.return_date, reason: v.reason, lines: out });
           onDone();
         }} />
-      <p className="muted">Lo marcado como dañado genera una no conformidad. Para reconocer el valor al cliente emita una nota crédito desde Facturación.</p>
+      <p className="muted">Lo revendible entra a la ubicación elegida. Lo dañado entra a la ubicación de bajas de esa bodega, no queda disponible, y genera una no conformidad con su costo. Para reconocer el valor al cliente emita una nota crédito desde Facturación.</p>
     </Modal>
   );
 }

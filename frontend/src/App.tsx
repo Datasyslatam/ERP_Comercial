@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { AlertsPage, BankReconciliationPage, EntriesPage, GoalsBudgetsPage, PaymentsPage, PeriodsPage,
   ReportsPage } from "./pages/Accounting";
+import { BankAccountsPage, BusinessUnitsPage, CategoriesPage, CompanyPage, CostCentersPage, ExchangeRatesPage, PartyWithholdingsPage,
+  PaymentTermsPage, PostingAccountsPage, SequencesPage, SitesPage, UomsPage } from "./pages/Config";
 import { Dashboard } from "./pages/Dashboard";
 import { FiscalPage } from "./pages/Fiscal";
 import { ReceivablesPage } from "./pages/Receivables";
@@ -30,6 +32,18 @@ function Routed() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
+        <Route path="config/empresa" element={<CompanyPage />} />
+        <Route path="config/sedes" element={<SitesPage />} />
+        <Route path="config/unidades-negocio" element={<BusinessUnitsPage />} />
+        <Route path="config/centros-costo" element={<CostCentersPage />} />
+        <Route path="config/condiciones-pago" element={<PaymentTermsPage />} />
+        <Route path="config/categorias" element={<CategoriesPage />} />
+        <Route path="config/unidades" element={<UomsPage />} />
+        <Route path="config/tasas" element={<ExchangeRatesPage />} />
+        <Route path="config/secuencias" element={<SequencesPage />} />
+        <Route path="config/cuentas-bancarias" element={<BankAccountsPage />} />
+        <Route path="config/cuentas-contabilizacion" element={<PostingAccountsPage />} />
+        <Route path="config/retenciones" element={<PartyWithholdingsPage />} />
         <Route path="gerencia/alertas" element={<AlertsPage />} />
         <Route path="gerencia/metas" element={<GoalsBudgetsPage />} />
         <Route path="gerencia/presupuestos" element={<GoalsBudgetsPage />} />

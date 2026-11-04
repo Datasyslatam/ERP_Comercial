@@ -142,18 +142,34 @@ export function InventoryDocumentsPage() {
   const items = useOptions("/items?limit=500", (x) => `${x.sku} · ${x.name}`);
   const locs = useOptions("/locations?limit=500", (x) => `${x.code} ${x.name}`);
   const ccs = useOptions("/cost-centers", (x) => `${x.code} ${x.name}`);
+  const itemName = useItemNames();
+  const locName = useLookup("/locations?limit=500", (x) => x.code);
+  const lotName = useLookup("/inventory/lots?limit=500", (x) => x.lot_number);
+  const lots = useOptions("/inventory/lots?limit=500", (x) => `${x.lot_number} · ${itemName(x.item_id)}`);
   const [creating, setCreating] = useState(false);
+  const [current, setCurrent] = useState<Json | null>(null);
   return (
     <Page title="Movimientos y ajustes" subtitle="Transferencias, ajustes (con aprobación), consumos internos y bajas"
           actions={can("inventory.document.create") && <button onClick={() => setCreating(true)}>Nuevo documento</button>}>
-      <DataTable rows={data?.items} columns={[{ key: "number", title: "Número" }, { key: "doc_type", title: "Tipo" },
-        { key: "doc_date", title: "Fecha" }, { key: "reason", title: "Motivo" }, { key: "status", title: "Estado", render: (r) => <Badge value={r.status} /> },
-        { key: "a", title: "", render: (r) => <span className="row">
+      <DataTable rows={data?.items} onRowClick={setCurrent} columns={[{ key: "number", title: "Número" }, { key: "doc_type", title: "Tipo" },
+        { key: "doc_date", title: "Fecha" }, { key: "reason", title: "Motivo" },
+        { key: "item", title: "Artículo", render: (r) => r.lines?.length === 1 ? itemName(r.lines[0].item_id) : `${r.lines?.length ?? 0} líneas` },
+        { key: "qty", title: "Cantidad", align: "right", render: (r) => r.lines?.length === 1 ? fmtNumber(r.lines[0].quantity) : "—" },
+        { key: "status", title: "Estado", render: (r) => <Badge value={r.status} /> },
+        { key: "a", title: "", render: (r) => <span className="row" onClick={(e) => e.stopPropagation()}>
           {r.status === "draft" && ["adjustment", "scrap"].includes(r.doc_type) && can("inventory.document.approve") &&
             <ActionButton onClick={async () => { await post(`/inventory/documents/${r.id}/approve`); reload(); }}>Aprobar</ActionButton>}
           {(r.status === "approved" || (r.status === "draft" && ["transfer", "consumption"].includes(r.doc_type))) && can("inventory.document.post") &&
             <ActionButton onClick={async () => { await post(`/inventory/documents/${r.id}/post`); reload(); }}>Aplicar</ActionButton>}
         </span> }]} />
+      {current && <Modal title={`Documento ${current.number}`} onClose={() => setCurrent(null)}>
+        <p>{current.reason}</p>
+        <DataTable rows={current.lines} columns={[{ key: "item_id", title: "Artículo", render: (r) => itemName(r.item_id) },
+          { key: "lot_id", title: "Lote", render: (r) => lotName(r.lot_id) }, { key: "from_location_id", title: "Origen", render: (r) => locName(r.from_location_id) },
+          { key: "to_location_id", title: "Destino", render: (r) => locName(r.to_location_id) },
+          { key: "quantity", title: "Cantidad", align: "right", render: (r) => fmtNumber(r.quantity) },
+          { key: "unit_cost", title: "Costo unitario", align: "right", render: (r) => r.unit_cost === null ? "—" : fmtNumber(r.unit_cost) }]} />
+      </Modal>}
       {creating && (
         <Modal title="Documento de inventario" onClose={() => setCreating(false)}>
           <Form initial={{ doc_date: today(), doc_type: "transfer" }} fields={[
@@ -162,13 +178,14 @@ export function InventoryDocumentsPage() {
             { name: "doc_date", label: "Fecha", type: "date", required: true }, { name: "reason", label: "Motivo", required: true },
             { name: "cost_center_id", label: "Centro de costo (consumos)", type: "select", options: ccs },
             { name: "item_id", label: "Artículo", type: "select", required: true, options: items },
+            { name: "lot_id", label: "Lote (si el artículo lo maneja)", type: "select", options: lots },
             { name: "quantity", label: "Cantidad", type: "number", required: true },
             { name: "from_location_id", label: "Ubicación origen", type: "select", options: locs },
             { name: "to_location_id", label: "Ubicación destino", type: "select", options: locs },
             { name: "unit_cost", label: "Costo unitario (solo ajustes de entrada)", type: "number" }]}
             onSubmit={async (d) => {
-              const { item_id, quantity, from_location_id, to_location_id, unit_cost, ...head } = d;
-              await post("/inventory/documents", { ...head, lines: [{ item_id, quantity, from_location_id, to_location_id, unit_cost }] });
+              const { item_id, lot_id, quantity, from_location_id, to_location_id, unit_cost, ...head } = d;
+              await post("/inventory/documents", { ...head, lines: [{ item_id, lot_id, quantity, from_location_id, to_location_id, unit_cost }] });
               setCreating(false); reload();
             }} />
         </Modal>
@@ -182,7 +199,8 @@ export function CountsPage() {
   const { data, reload } = useFetch<Json>("/inventory/counts");
   const whs = useOptions("/warehouses", (x) => x.name);
   const [current, setCurrent] = useState<number | null>(null);
-  const detail = useFetch<Json>(current ? `/inventory/counts/${current}` : null);
+  // Quien aprueba ve sistema y diferencia; el servidor mantiene a ciegas a quien abrió el conteo.
+  const detail = useFetch<Json>(current ? `/inventory/counts/${current}${can("inventory.count.approve") ? "?blind=false" : ""}` : null);
   const [counted, setCounted] = useState<Record<number, string>>({});
   const itemName = useItemNames();
   const locName = useLookup("/locations?limit=500", (x) => x.code);
@@ -202,7 +220,9 @@ export function CountsPage() {
             ...(detail.data.lines[0] && "system_qty" in detail.data.lines[0] ? [{ key: "system_qty", title: "Sistema", align: "right" as const, render: (r: Json) => fmtNumber(r.system_qty) }] : []),
             { key: "counted_qty", title: "Contado", align: "right", render: (r) => detail.data.status === "open"
               ? <input type="number" step="any" aria-label="Cantidad contada" defaultValue={r.counted_qty ?? ""}
-                       onChange={(e) => setCounted({ ...counted, [r.id]: e.target.value })} /> : fmtNumber(r.counted_qty) }]} />
+                       onChange={(e) => setCounted({ ...counted, [r.id]: e.target.value })} /> : fmtNumber(r.counted_qty) },
+            ...(detail.data.lines[0] && "system_qty" in detail.data.lines[0] ? [{ key: "dif", title: "Diferencia", align: "right" as const,
+              render: (r: Json) => r.counted_qty === null ? "—" : fmtNumber(Number(r.counted_qty) - Number(r.system_qty)) }] : [])]} />
           {detail.data.status === "open" && <div className="row">
             <ActionButton onClick={async () => {
               const entries = detail.data.lines.filter((l: Json) => counted[l.id] !== undefined).map((l: Json) => ({

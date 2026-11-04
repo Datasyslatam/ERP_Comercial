@@ -133,6 +133,9 @@ def create_company(db: Session, *, code: str, legal_name: str, tax_id: str, coun
                                          ("BAJ", "Bajas y mermas", "scrap")):
         db.add(Location(company_id=company.id, warehouse_id=wh.id, code=loc_code, name=loc_name,
                         location_type=loc_type))
+    if "operations" not in SECTOR_DISABLED[sector]:
+        db.add(Location(company_id=company.id, warehouse_id=wh.id, code="PRD", name="Proceso de producción",
+                        location_type="production"))
     ensure_periods(db, company.id, year or date.today().year)
     db.flush()
     return company

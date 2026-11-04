@@ -419,3 +419,7 @@ button.user-chip:disabled { opacity: 1; cursor: default; background: rgba(255, 2
 
 .checklist { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: .3rem 1rem; max-height: 280px; overflow-y: auto;
   padding: .6rem .8rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); margin-bottom: .6rem; }
+
+/* Tablas de líneas con muchas columnas: se ajustan al ancho del cuadro. */
+.lines-fit { table-layout: fixed; width: 100%; }
+.lines-fit select, .lines-fit input { width: 100%; min-width: 0; }

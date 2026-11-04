@@ -148,8 +148,16 @@ class WithholdingsIn(BaseModel):
     tax_ids: list[int]
 
 
+@router.get("/parties/{party_id}/withholdings", tags=["Terceros"])
+def get_withholdings(party_id: int, p: Principal = Depends(require("masters.parties.read")),
+                     db: Session = Depends(get_db)):
+    party = get_owned(db, Party, party_id, p.company_id)
+    ids = db.scalars(select(PartyWithholding.tax_id).where(PartyWithholding.party_id == party.id))
+    return {"party_id": party.id, "tax_ids": list(ids)}
+
+
 @router.put("/parties/{party_id}/withholdings", tags=["Terceros"])
-def set_withholdings(party_id: int, body: WithholdingsIn, p: Principal = Depends(require("masters.parties.create")),
+def set_withholdings(party_id: int, body: WithholdingsIn, p: Principal = Depends(require("masters.taxes.admin")),
                      db: Session = Depends(get_db)):
     party = get_owned(db, Party, party_id, p.company_id)
     for tid in body.tax_ids:
@@ -159,6 +167,7 @@ def set_withholdings(party_id: int, body: WithholdingsIn, p: Principal = Depends
     db.execute(delete(PartyWithholding).where(PartyWithholding.party_id == party.id))
     for tid in body.tax_ids:
         db.add(PartyWithholding(party_id=party.id, tax_id=tid))
+    log_action(db, "admin", "parties", party.id, f"Retenciones asignadas: {sorted(body.tax_ids)}")
     db.commit()
     return {"party_id": party.id, "tax_ids": body.tax_ids}
 
@@ -173,7 +182,8 @@ def get_company(p: Principal = Depends(require("admin.company.read")), db: Sessi
     c = p.company
     mods = {m.module_code: m.enabled for m in db.scalars(select(CompanyModule).where(CompanyModule.company_id == c.id))}
     return {"id": c.id, "code": c.code, "legal_name": c.legal_name, "tax_id": c.tax_id, "country": c.country_code,
-            "functional_currency": c.functional_currency, "settings": c.settings, "modules": mods}
+            "functional_currency": c.functional_currency, "settings": c.settings, "modules": mods,
+            "is_withholding_agent": c.is_withholding_agent, "is_special_taxpayer": c.is_special_taxpayer}
 
 
 @router.patch("/company/settings", tags=["Empresa"])
@@ -189,6 +199,23 @@ def update_settings(body: CompanySettingsIn, p: Principal = Depends(require("adm
     log_action(db, "admin", "companies", company.id, f"Cambio de políticas: {sorted(body.settings)}")
     db.commit()
     return company.settings
+
+
+class CompanyFiscalIn(BaseModel):
+    is_withholding_agent: bool
+    is_special_taxpayer: bool
+
+
+@router.patch("/company/fiscal", tags=["Empresa"])
+def update_fiscal(body: CompanyFiscalIn, p: Principal = Depends(require("admin.company.admin")),
+                  db: Session = Depends(get_db)):
+    company = db.get(Company, p.company_id)
+    company.is_withholding_agent = body.is_withholding_agent
+    company.is_special_taxpayer = body.is_special_taxpayer
+    log_action(db, "admin", "companies", company.id, f"Condición fiscal: agente de retención={body.is_withholding_agent}, "
+               f"contribuyente especial={body.is_special_taxpayer}")
+    db.commit()
+    return body.model_dump()
 
 
 class ModuleToggleIn(BaseModel):

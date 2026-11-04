@@ -21,7 +21,7 @@ export function ResourcePage({ title, path, columns, fields, writePerm, exportPe
       {exportPerm && can(exportPerm) && (
         <button className="secondary" onClick={() => download(`${path}/export.csv${qs({ q })}`, `${title}.csv`)}>
           Exportar CSV</button>)}
-      {canWrite && <button onClick={() => setEditing({})}>Nuevo</button>}
+      {canWrite && <button onClick={() => setEditing(fields.some((f) => f.name === "is_active") ? { is_active: true } : {})}>Nuevo</button>}
     </>}>
       {error && <div className="alert alert-error">{error}</div>}
       <p className="muted">{data ? `${data.total} registros` : ""}</p>

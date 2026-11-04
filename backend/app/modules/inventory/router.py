@@ -163,7 +163,7 @@ def get_count(count_id: int, blind: bool = True, p: Principal = Depends(require(
     """Conteo ciego: oculta la existencia del sistema mientras está abierto (blind=false solo para aprobadores)."""
     cnt = get_owned(db, PhysicalCount, count_id, p.company_id)
     out = to_dict(cnt, "lines")
-    if cnt.status == "open" and (blind or not p.has("inventory.count.approve")):
+    if cnt.status == "open" and (blind or not p.has("inventory.count.approve") or cnt.created_by_id == p.user_id):
         for ln in out["lines"]:
             ln.pop("system_qty", None)
             ln.pop("difference", None)

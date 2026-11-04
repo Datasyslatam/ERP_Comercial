@@ -266,18 +266,25 @@ def receive_return(db: Session, p: Principal, d_id: int, data: dict) -> Customer
                                 quantity=quantity, condition=x.get("condition", "resellable"))
         ret.lines.append(rl)
         db.flush()
+        damaged_cost = (ln.unit_cost or ZERO) * quantity
         if item.is_stocked:
-            mv = stock.receive(db, p.company_id, item_id=ln.item_id, location_id=ret.location_id, quantity=quantity,
+            reentry = ret.location_id
+            if rl.condition == "damaged":
+                warehouse_id = stock.get_location(db, p.company_id, ret.location_id).warehouse_id
+                reentry = stock.default_location(db, p.company_id, warehouse_id, "scrap").id
+            mv = stock.receive(db, p.company_id, item_id=ln.item_id, location_id=reentry, quantity=quantity,
                                unit_cost=ln.unit_cost or ZERO, move_type="customer_return", lot_id=rl.lot_id,
                                src=stock.MoveSource("customer_return", ret.id, rl.id, ret.number),
                                reason=f"Devolución {ret.number}: {ret.reason}", user_id=p.user_id)
             values[ln.item_id] += mv.total_cost
+            damaged_cost = mv.total_cost
         ln.qty_returned += quantity
         db.get(SalesOrderLine, ln.so_line_id).qty_returned += quantity
         if rl.condition == "damaged":
             raise_nc(db, p, source="customer", description=f"Producto devuelto en mal estado ({ret.number}): "
                      f"{ret.reason}", severity="major", item_id=ln.item_id, lot_id=rl.lot_id,
-                     customer_id=d.customer_id, quantity_affected=quantity, category="devolucion_cliente")
+                     customer_id=d.customer_id, quantity_affected=quantity, category="devolucion_cliente",
+                     cost_impact=damaged_cost)
     post_inventory_value(db, company_id=p.company_id, entry_date=ret.return_date, key=f"customer_return:{ret.id}",
                          description=f"Devolución de cliente {ret.number}", source_type="customer_return",
                          source_id=ret.id, by_item=dict(values), counter_key="cogs", inbound=True, user_id=p.user_id)

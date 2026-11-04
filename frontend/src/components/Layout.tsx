@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { useSession } from "../lib/session";
 import { ChangePasswordForm } from "../pages/Admin";
 import { Modal } from "./ui";
@@ -69,6 +70,20 @@ export const NAV: { section: string; items: NavItem[] }[] = [
     { to: "/maestros/cuentas", label: "Plan de cuentas", perm: "accounting.accounts.read" },
     { to: "/maestros/bodegas", label: "Bodegas y ubicaciones", perm: "inventory.config.read" },
     { to: "/maestros/numeracion", label: "Numeración autorizada", perm: "einvoicing.numbering.read" },
+  ] },
+  { section: "Configuración", items: [
+    { to: "/config/empresa", label: "Empresa", perm: "admin.company.admin" },
+    { to: "/config/sedes", label: "Sedes", perm: "admin.company.admin" },
+    { to: "/config/unidades-negocio", label: "Unidades de negocio", perm: "admin.company.admin" },
+    { to: "/config/centros-costo", label: "Centros de costo", perm: "masters.config.admin" },
+    { to: "/config/condiciones-pago", label: "Condiciones de pago", perm: "masters.config.admin" },
+    { to: "/config/categorias", label: "Categorías de artículos", perm: "masters.items.create" },
+    { to: "/config/unidades", label: "Unidades de medida", perm: "masters.config.admin" },
+    { to: "/config/tasas", label: "Tasas de cambio", perm: "masters.config.admin" },
+    { to: "/config/secuencias", label: "Secuencias de documentos", perm: "masters.config.admin" },
+    { to: "/config/cuentas-bancarias", label: "Cuentas bancarias", perm: "accounting.accounts.admin" },
+    { to: "/config/cuentas-contabilizacion", label: "Cuentas de contabilización", perm: "accounting.accounts.admin" },
+    { to: "/config/retenciones", label: "Retenciones por tercero", perm: "masters.taxes.admin" },
   ] },
   { section: "Administración", items: [
     { to: "/importaciones", label: "Importar datos", perm: "imports.job.read" },
@@ -202,7 +217,8 @@ export function Layout() {
       </nav>
       <main className="content">
         {!company ? <p className="alert alert-warning">Su usuario no tiene empresas asignadas.</p>
-          : blocked ? <p className="alert alert-warning" role="alert">{blocked}</p> : <Outlet />}
+          : blocked ? <p className="alert alert-warning" role="alert">{blocked}</p>
+          : <ErrorBoundary key={pathname}><Outlet /></ErrorBoundary>}
       </main>
       {changingPassword && <Modal title="Cambiar contraseña" onClose={() => setChangingPassword(false)}>
         <ChangePasswordForm onDone={() => setChangingPassword(false)} />
