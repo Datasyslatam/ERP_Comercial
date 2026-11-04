@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ActionButton, Alert, DataTable, Form, Modal, Page } from "../components/ui";
+import { Badge, ActionButton, Alert, DataTable, Form, Modal, Page } from "../components/ui";
 import { download, get, Json, post } from "../lib/api";
 import { fmtDate, fmtMoney } from "../lib/format";
 import { useFetch } from "../lib/hooks";
@@ -53,6 +53,7 @@ export function ReceivablesPage() {
     setSelected({});
     navigate(k === "payable" ? "/contabilidad/cuentas-por-pagar" : "/contabilidad/cuentas-por-cobrar");
   };
+  const crosses = useFetch<{ items: Json[] }>(party ? `/accounting/advance-applications?party_id=${party}` : null);
   const labels = aging.data?.labels ?? {};
   const payable = can("accounting.payments.create");
   return (
@@ -103,6 +104,15 @@ export function ReceivablesPage() {
           { key: "total", title: "Saldo neto", align: "right", render: (r) => <strong>{fmtMoney(r.total)}</strong> },
           ...(receivable ? [{ key: "credit_limit", title: "Cupo", align: "right" as const, render: (r: Json) => Number(r.credit_limit)
             ? <span className={Number(r.total) > Number(r.credit_limit) ? "danger" : ""}>{fmtMoney(r.credit_limit)}</span> : "—" }] : [])]} />}
+      {party && (crosses.data?.items.length ?? 0) > 0 && <>
+        <h3>Cruces de anticipo</h3>
+        <DataTable rows={crosses.data?.items} columns={[{ key: "application_date", title: "Fecha" }, { key: "advance_document", title: "Anticipo" },
+          { key: "document", title: "Documento" }, { key: "amount", title: "Valor", align: "right", render: (r) => fmtMoney(r.amount) },
+          { key: "status", title: "Estado", render: (r) => <Badge value={r.status === "voided" ? "cancelled" : "posted"} /> },
+          { key: "a", title: "", render: (r) => r.status === "posted" && can("accounting.payments.void") &&
+            <ActionButton className="danger" onClick={async () => { const reason = window.prompt("Motivo de la anulación del cruce. Se anulan todas las filas del mismo cruce.");
+              if (reason) { await post(`/accounting/advance-applications/${r.id}/void`, { reason }); crosses.reload(); reload(); } }}>Anular cruce</ActionButton> }]} />
+      </>}
       {paying && <PaymentModal kind={kind} items={paying} onClose={() => setPaying(null)} onDone={() => { setPaying(null); reload(); }} />}
       {advanceFor && <PaymentModal kind={kind} party={advanceFor} onClose={() => setAdvanceFor(null)} onDone={() => { setAdvanceFor(null); reload(); }} />}
       {crossing && <ApplyAdvanceModal kind={kind} advance={crossing} onClose={() => setCrossing(null)} onDone={() => { setCrossing(null); reload(); }} />}

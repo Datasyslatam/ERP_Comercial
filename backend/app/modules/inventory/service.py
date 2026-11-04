@@ -3,7 +3,7 @@ from collections import defaultdict
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.core.audit import log_action
@@ -20,10 +20,32 @@ from app.modules.inventory.models import (
     InventoryDocument,
     InventoryDocumentLine,
     Location,
+    Lot,
     PhysicalCount,
     PhysicalCountLine,
     StockBalance,
 )
+from app.modules.quality.models import Inspection
+
+
+def _check_quarantine(db: Session, company_id: int, ln: InventoryDocumentLine) -> None:
+    """Lo que espera inspección no sale de las ubicaciones de calidad: se libera registrando la inspección."""
+    if not ln.from_location_id or stock.get_location(db, company_id, ln.from_location_id).location_type != "quality":
+        return
+    lot_filter = Inspection.lot_id == ln.lot_id if ln.lot_id else Inspection.lot_id.is_(None)
+    pending = db.scalar(select(func.coalesce(func.sum(Inspection.quantity), 0)).where(
+        Inspection.company_id == company_id, Inspection.item_id == ln.item_id, Inspection.status == "pending",
+        lot_filter)) or ZERO
+    if not pending:
+        return
+    balance_lot = StockBalance.lot_id == ln.lot_id if ln.lot_id else StockBalance.lot_id.is_(None)
+    in_quality = db.scalar(select(func.coalesce(func.sum(StockBalance.qty_on_hand), 0))
+                           .join(Location, Location.id == StockBalance.location_id)
+                           .where(StockBalance.company_id == company_id, StockBalance.item_id == ln.item_id,
+                                  Location.location_type == "quality", balance_lot)) or ZERO
+    if in_quality - abs(ln.quantity) < pending:
+        raise BusinessRuleViolation(f"Hay {pending.normalize():f} unidades de este artículo pendientes de inspección: "
+                                    "se liberan registrando la inspección en Calidad")
 
 
 def create_document(db: Session, p: Principal, data: dict) -> InventoryDocument:
@@ -33,7 +55,13 @@ def create_document(db: Session, p: Principal, data: dict) -> InventoryDocument:
     doc = InventoryDocument(company_id=p.company_id, number=next_number(db, p.company_id, "inventory_document"),
                             created_by_id=p.user_id, **data)
     for ln in lines:
-        stock.get_item(db, p.company_id, ln["item_id"])
+        item = stock.get_item(db, p.company_id, ln["item_id"])
+        if (item.track_lots or item.track_serials) and not ln.get("lot_id"):
+            raise BusinessRuleViolation(f"El artículo {item.sku} maneja lotes: indique el lote")
+        if ln.get("lot_id"):
+            lot = get_owned(db, Lot, ln["lot_id"], p.company_id)
+            if lot.item_id != item.id:
+                raise BusinessRuleViolation(f"El lote {lot.lot_number} no corresponde al artículo {item.sku}")
         for k in ("from_location_id", "to_location_id"):
             if ln.get(k):
                 stock.get_location(db, p.company_id, ln[k])
@@ -86,6 +114,7 @@ def post_document(db: Session, p: Principal, doc_id: int) -> InventoryDocument:
     ins: dict[int, Decimal] = defaultdict(lambda: ZERO)
     outs: dict[int, Decimal] = defaultdict(lambda: ZERO)
     for ln in doc.lines:
+        _check_quarantine(db, p.company_id, ln)
         src = stock.MoveSource("inventory_document", doc.id, ln.id, doc.number)
         if doc.doc_type == "transfer":
             stock.transfer(db, p.company_id, item_id=ln.item_id, from_location_id=ln.from_location_id,

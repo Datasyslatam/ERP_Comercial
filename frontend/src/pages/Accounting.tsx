@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { DocumentActions } from "../components/DocumentActions";
 import { TracePanel } from "../components/TracePanel";
 import { ActionButton, Alert, Badge, DataTable, Form, KeyValues, Modal, Page } from "../components/ui";
-import { download, get, Json, patch, post, put, qs } from "../lib/api";
+import { api, download, get, Json, patch, post, put, qs } from "../lib/api";
 import { fmtDate, fmtMoney } from "../lib/format";
 import { useFetch, useLookup, useOptions } from "../lib/hooks";
 import { useSession } from "../lib/session";
@@ -89,9 +89,12 @@ export function EntriesPage() {
   const { can } = useSession();
   const { data, reload } = useFetch<Json>("/accounting/entries?limit=100");
   const accounts = useOptions("/accounts?limit=500", (x) => `${x.code} ${x.name}`);
+  const parties = useOptions(can("masters.parties.read") ? "/parties?limit=500" : null, (x) => x.legal_name);
+  const costCenters = useOptions(can("masters.config.read") ? "/cost-centers" : null, (x) => `${x.code} ${x.name}`);
   const [creating, setCreating] = useState(false);
   const [current, setCurrent] = useState<number | null>(null);
-  const [rows, setRows] = useState([{ account_id: "", debit: "", credit: "" }, { account_id: "", debit: "", credit: "" }]);
+  const emptyLine = { account_id: "", debit: "", credit: "", party_id: "", cost_center_id: "" };
+  const [rows, setRows] = useState([emptyLine, emptyLine]);
   const sum = (k: "debit" | "credit") => rows.reduce((s, r) => s + Number(r[k] || 0), 0);
   return (
     <Page title="Comprobantes contables" actions={can("accounting.journal.create") && <button onClick={() => setCreating(true)}>Comprobante manual</button>}>
@@ -100,26 +103,33 @@ export function EntriesPage() {
         { key: "source", title: "Origen", render: (r) => r.source_type ? `${r.source_type} #${r.source_id ?? ""}` : "manual" },
         { key: "status", title: "Estado", render: (r) => <Badge value={r.status} /> },
         { key: "total_debit", title: "Valor", align: "right", render: (r) => fmtMoney(r.total_debit) },
-        { key: "a", title: "", render: (r) => <span className="row">
+        { key: "a", title: "", render: (r) => <span className="row" onClick={(e) => e.stopPropagation()}>
           {r.status === "draft" && can("accounting.journal.post") && <ActionButton onClick={async () => { await post(`/accounting/entries/${r.id}/post`); reload(); }}>Contabilizar</ActionButton>}
+          {r.status === "draft" && can("accounting.journal.create") && <ActionButton className="secondary" confirm="¿Descartar este borrador? No se puede recuperar."
+            onClick={async () => { await api("DELETE", `/accounting/entries/${r.id}`); reload(); }}>Descartar</ActionButton>}
           {r.status === "posted" && (!r.source_type || r.source_type === "manual") && can("accounting.journal.void") &&
             <ActionButton className="danger" onClick={async () => { const reason = window.prompt("Motivo del reverso");
               if (reason) { await post(`/accounting/entries/${r.id}/reverse`, { reversal_date: today(), reason }); reload(); } }}>Reversar</ActionButton>}
         </span> }]} />
       {current && <EntryModal id={current} accounts={accounts} onClose={() => setCurrent(null)} />}
       {creating && <Modal title="Comprobante manual (borrador)" onClose={() => setCreating(false)}>
-        <table className="lines"><tbody>{rows.map((r, i) => <tr key={i}>
+        <table className="lines lines-fit"><tbody>{rows.map((r, i) => <tr key={i}>
           <td><select aria-label="Cuenta" value={r.account_id} onChange={(e) => setRows(rows.map((x, j) => j === i ? { ...x, account_id: e.target.value } : x))}>
             <option value="">—</option>{accounts.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}</select></td>
           <td><input aria-label="Débito" type="number" step="any" placeholder="Débito" value={r.debit} onChange={(e) => setRows(rows.map((x, j) => j === i ? { ...x, debit: e.target.value } : x))} /></td>
           <td><input aria-label="Crédito" type="number" step="any" placeholder="Crédito" value={r.credit} onChange={(e) => setRows(rows.map((x, j) => j === i ? { ...x, credit: e.target.value } : x))} /></td>
+          <td><select aria-label="Tercero" value={r.party_id} onChange={(e) => setRows(rows.map((x, j) => j === i ? { ...x, party_id: e.target.value } : x))}>
+            <option value="">Tercero</option>{parties.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}</select></td>
+          <td><select aria-label="Centro de costo" value={r.cost_center_id} onChange={(e) => setRows(rows.map((x, j) => j === i ? { ...x, cost_center_id: e.target.value } : x))}>
+            <option value="">Centro de costo</option>{costCenters.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}</select></td>
         </tr>)}</tbody></table>
-        <button className="secondary" onClick={() => setRows([...rows, { account_id: "", debit: "", credit: "" }])}>+ Línea</button>
+        <button className="secondary" onClick={() => setRows([...rows, emptyLine])}>+ Línea</button>
         <p>Débitos {fmtMoney(sum("debit"))} · Créditos {fmtMoney(sum("credit"))} {sum("debit") !== sum("credit") && <Badge value="critical" />}</p>
         <Form initial={{ entry_date: today() }} fields={[{ name: "entry_date", label: "Fecha", type: "date", required: true },
           { name: "description", label: "Descripción", required: true }]}
           onSubmit={async (d) => { await post("/accounting/entries", { ...d, lines: rows.filter((r) => r.account_id).map((r) => ({
-            account_id: Number(r.account_id), debit: r.debit || "0", credit: r.credit || "0" })) }); setCreating(false); reload(); }} />
+            account_id: Number(r.account_id), debit: r.debit || "0", credit: r.credit || "0",
+            party_id: r.party_id ? Number(r.party_id) : null, cost_center_id: r.cost_center_id ? Number(r.cost_center_id) : null })) }); setCreating(false); setRows([emptyLine, emptyLine]); reload(); }} />
       </Modal>}
     </Page>
   );
@@ -127,13 +137,24 @@ export function EntriesPage() {
 
 export function PeriodsPage() {
   const { can } = useSession();
-  const year = new Date().getFullYear();
+  const thisYear = new Date().getFullYear();
+  const [year, setYear] = useState(thisYear);
   const { data, reload } = useFetch<Json[]>(`/accounting/periods?year=${year}`);
+  const nextYear = useFetch<Json[]>(`/accounting/periods?year=${thisYear + 1}`);
+  const admin = can("accounting.period.admin");
+  const openYear = async (y: number) => { await post("/accounting/periods/open-year", { year: y, month: 1 }); reload(); nextYear.reload(); };
   return (
-    <Page title={`Periodos contables ${year}`} actions={can("accounting.period.admin") &&
-      <ActionButton className="secondary" confirm={`Se generará el asiento de cierre de ${year - 1}: traslada ingresos, costos y gastos a resultados acumulados. ¿Continuar?`}
-        onClick={async () => { await post("/accounting/year-close", { year: year - 1, month: 12 }); reload(); }}>Cierre del ejercicio {year - 1}</ActionButton>}>
-      <DataTable rows={data} columns={[{ key: "month", title: "Mes" }, { key: "start_date", title: "Desde" }, { key: "end_date", title: "Hasta" },
+    <Page title={`Periodos contables ${year}`} actions={<>
+      <select aria-label="Año" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+        {[3, 2, 1, 0, -1].map((d) => thisYear - d).map((y) => <option key={y} value={y}>{y}</option>)}</select>
+      {admin && data?.length === 0 && <ActionButton confirm={`Se abrirán los 12 meses de ${year}. ¿Continuar?`} onClick={() => openYear(year)}>Abrir año {year}</ActionButton>}
+      {admin && <ActionButton className="secondary" confirm={`Se generará el asiento de cierre de ${year - 1}: traslada ingresos, costos y gastos a resultados acumulados. ¿Continuar?`}
+        onClick={async () => { await post("/accounting/year-close", { year: year - 1, month: 12 }); reload(); }}>Cierre del ejercicio {year - 1}</ActionButton>}
+    </>}>
+      {admin && new Date().getMonth() >= 9 && nextYear.data?.length === 0 && <Alert kind="warning">
+        El año {thisYear + 1} no está abierto. Ábralo antes del 31 de diciembre: sin él, no se podrá registrar nada con fecha de {thisYear + 1}.{" "}
+        <ActionButton className="secondary" confirm={`Se abrirán los 12 meses de ${thisYear + 1}. ¿Continuar?`} onClick={() => openYear(thisYear + 1)}>Abrir año {thisYear + 1}</ActionButton></Alert>}
+      <DataTable rows={data} empty="Este año no está abierto" columns={[{ key: "month", title: "Mes" }, { key: "start_date", title: "Desde" }, { key: "end_date", title: "Hasta" },
         { key: "status", title: "Estado", render: (r) => <Badge value={r.status === "open" ? "open" : "closed"} /> },
         { key: "reopen_reason", title: "Motivo reapertura" },
         { key: "a", title: "", render: (r) => can("accounting.period.admin") && (r.status === "open"

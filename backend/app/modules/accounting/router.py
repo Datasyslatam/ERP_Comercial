@@ -342,7 +342,11 @@ def list_advance_applications(party_id: int | None = None, limit: int = Query(50
     stmt = select(AdvanceApplication).where(AdvanceApplication.company_id == p.company_id)
     if party_id:
         stmt = stmt.join(OpenItem, OpenItem.id == AdvanceApplication.advance_item_id).where(OpenItem.party_id == party_id)
-    return paginate(db, stmt.order_by(AdvanceApplication.id.desc()), limit, offset)
+    page = paginate(db, stmt.order_by(AdvanceApplication.id.desc()), limit, offset)
+    for row in page["items"]:
+        row["advance_document"] = db.get(OpenItem, row["advance_item_id"]).document_number
+        row["document"] = db.get(OpenItem, row["open_item_id"]).document_number
+    return page
 
 
 @router.post("/advance-applications/{app_id}/void")

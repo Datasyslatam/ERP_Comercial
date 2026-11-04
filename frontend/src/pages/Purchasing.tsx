@@ -237,6 +237,13 @@ export function SupplierInvoicesPage() {
   const pending: Json[] = (receipts.data?.items ?? []).flatMap((g: Json) => g.lines.filter((l: Json) => Number(l.qty_accepted) > Number(l.qty_invoiced))
     .map((l: Json) => ({ ...l, receipt_number: g.number, supplier_id: g.supplier_id })));
   const [selected, setSelected] = useState<Record<number, string>>({});
+  const canSeeAccounts = can("accounting.accounts.read");
+  const accounts = useOptions(canSeeAccounts ? "/accounts?limit=500" : null, (x) => `${x.code} ${x.name}`);
+  const taxes = useFetch<{ items: Json[] }>(can("masters.taxes.read") ? "/taxes?active=true&limit=200" : null);
+  const purchaseTaxes = (taxes.data?.items ?? []).filter((t) => !String(t.kind).startsWith("withholding") && t.kind !== "igtf" && t.applies_to !== "sales");
+  const emptyExpense = { description: "", expense_account_id: "", quantity: "1", unit_price: "", tax_id: "" };
+  const [expenses, setExpenses] = useState<(typeof emptyExpense)[]>([]);
+  const setExpense = (i: number, change: Partial<typeof emptyExpense>) => setExpenses(expenses.map((x, j) => j === i ? { ...x, ...change } : x));
   return (
     <Page title="Facturas de proveedor" subtitle="Cruce a tres vías: orden de compra, recepción aceptada y factura"
           actions={can("purchasing.invoice.create") && <button onClick={() => setCreating(true)}>Registrar factura</button>}>
@@ -253,6 +260,20 @@ export function SupplierInvoicesPage() {
             { key: "item_id", title: "Artículo", render: (r) => itemName(r.item_id) }, { key: "qty", title: "Pendiente", align: "right", render: (r) => fmtNumber(Number(r.qty_accepted) - Number(r.qty_invoiced)) },
             { key: "price", title: "Precio facturado", render: (r) => <input type="number" step="any" aria-label="Precio facturado"
               value={selected[r.id] ?? ""} onChange={(e) => setSelected({ ...selected, [r.id]: e.target.value })} /> }]} />
+          {canSeeAccounts && <>
+            <h3>Servicios y gastos sin recepción</h3>
+            {expenses.length > 0 && <table className="lines lines-fit"><tbody>{expenses.map((x, i) => <tr key={i}>
+              <td><input aria-label="Descripción del gasto" placeholder="Descripción" value={x.description} onChange={(e) => setExpense(i, { description: e.target.value })} /></td>
+              <td><select aria-label="Cuenta de gasto" value={x.expense_account_id} onChange={(e) => setExpense(i, { expense_account_id: e.target.value })}>
+                <option value="">Cuenta de gasto</option>{accounts.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}</select></td>
+              <td><input aria-label="Cantidad del gasto" type="number" step="any" value={x.quantity} onChange={(e) => setExpense(i, { quantity: e.target.value })} /></td>
+              <td><input aria-label="Valor unitario del gasto" type="number" step="any" placeholder="Valor unitario" value={x.unit_price} onChange={(e) => setExpense(i, { unit_price: e.target.value })} /></td>
+              <td><select aria-label="Impuesto del gasto" value={x.tax_id} onChange={(e) => setExpense(i, { tax_id: e.target.value })}>
+                <option value="">Sin impuesto</option>{purchaseTaxes.map((t) => <option key={t.id} value={t.id}>{t.code}</option>)}</select></td>
+              <td><button type="button" className="secondary" aria-label="Quitar gasto" onClick={() => setExpenses(expenses.filter((_, j) => j !== i))}>✕</button></td>
+            </tr>)}</tbody></table>}
+            <button type="button" className="secondary" onClick={() => setExpenses([...expenses, emptyExpense])}>+ Gasto</button>
+          </>}
           <Form initial={{ invoice_date: today(), currency: company?.currency ?? "COP" }} fields={[
             { name: "supplier_id", label: "Proveedor", type: "select", required: true, options: suppliers },
             { name: "supplier_invoice_number", label: "Número de factura", required: true },
@@ -262,7 +283,12 @@ export function SupplierInvoicesPage() {
             onSubmit={async (d) => {
               const lines = pending.filter((l: Json) => selected[l.id]).map((l: Json) => ({ receipt_line_id: l.id, description: `Recepción ${l.receipt_number}`,
                 quantity: String(Number(l.qty_accepted) - Number(l.qty_invoiced)), unit_price: selected[l.id] }));
-              await post("/purchasing/invoices", { ...d, lines });
+              const other = expenses.filter((x) => x.description || x.expense_account_id || x.unit_price);
+              if (other.some((x) => !x.description || !x.expense_account_id || !x.unit_price))
+                throw new Error("Cada gasto requiere descripción, cuenta y valor unitario");
+              await post("/purchasing/invoices", { ...d, lines: [...lines, ...other.map((x) => ({ description: x.description, expense_account_id: Number(x.expense_account_id),
+                quantity: x.quantity, unit_price: x.unit_price, tax_id: x.tax_id ? Number(x.tax_id) : null }))] });
+              setExpenses([]); setSelected({});
               setCreating(false); reload(); receipts.reload();
             }} />
         </Modal>
